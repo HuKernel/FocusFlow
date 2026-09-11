@@ -156,7 +156,6 @@ fun FocusApp(model: TasksViewModel, focus: FocusViewModel, onEnableReminders: ((
                         }
                     } else item {
                         when (selected) {
-                            Destination.FOCUS -> EmptyState("为下一次专注留出空间", "任务已经可以安排，计时功能将在下一阶段开放。")
                             Destination.STATS -> {
                                 val hasCompleted = state.data.sessions.any { it.status == SessionStatus.COMPLETED }
                                 if (!hasCompleted) EmptyState("每一段专注都值得记录", "完成第一次专注后，这里会呈现你的时间分布。")

@@ -5,6 +5,7 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "FocusFlow"
-include(":androidApp", ":desktopApp", ":shared:core", ":shared:database", ":shared:designsystem")
+include(":androidApp", ":desktopApp", ":server", ":shared:core", ":shared:database", ":shared:designsystem")
+include(":shared:sync")
 include(":shared:feature:tasks")
 include(":shared:feature:focus")

@@ -1,6 +1,6 @@
 ﻿# FocusFlow 交接入口
 
-更新时间：2026-09-11。当前版本 0.5.0 / versionCode 5，M4 构建与自动测试通过；下一阶段 M5。真机专项测试尚未完成。
+更新时间：2026-09-11。当前版本 0.6.0 / versionCode 6，M5 第一阶段（同步服务端+引擎）通过；下一阶段 M5 第二阶段接线。真机专项测试尚未完成。
 
 ## 开始前必读
 1. AGENTS.md、FocusFlow_Product_Spec_v3.docx、FocusFlow_Prototype_v3.png。
@@ -20,11 +20,11 @@
 ```
 
 ## 已交付与验证
-- M3（Motion/Sound/Haptic）与 M4（Statistics/Heatmap）已交付；当前版本 0.5.0 / versionCode 5。
-- 全量日志 E:/FocusFlowTools/m4-final.log：BUILD SUCCESSFUL in 31s；Android build/lint、Desktop classes、32 项测试通过：core 16 / database 7 / designsystem 4 / tasks UI 5。
+- M3/M4 已交付；M5 第一阶段（server + SyncEngine + 双设备 55m 合并测试）本轮交付，版本 0.6.0 / versionCode 6。
+- 全量日志 E:/FocusFlowTools/m5-final2.log：BUILD SUCCESSFUL in 2m 30s；Android build/lint、Desktop classes、server 2 / sync 2 在内 36 项测试通过：core 16、database 7、designsystem 4、tasks UI 5、sync 2、server 2。
 - lint 0 errors / 17 warnings：原 15 条 + 2 条 UseKtx（SharedPreferences.edit 标准写法提示，不加 core-ktx）。
-- APK artifacts/FocusFlow-0.5.0-debug.apk，apksigner 验证通过，可覆盖旧版 Debug 安装。
-- SHA256：7276D6515A02F192047ABED3937ADBC45DC8877CD726CC8428601057B1E73890。
+- APK artifacts/FocusFlow-0.6.0-debug.apk，apksigner 验证通过，可覆盖旧版 Debug 安装；App 内行为与 0.5.0 相同（同步未接线）。
+- SHA256：8D057E008842FA5B9D24A5A35520B78AC6BABD84964D2FD32AA382CCE4BC7823。
 - adb devices 当前无设备；未声称真机音质/触感/动画流畅度或省电专项已通过。GitHub Actions 已配置，未核验远程执行结果。
 
 ## 当前实现
@@ -32,13 +32,13 @@
 - feature/focus：普通倒计时/正计时、暂停继续、完成/取消、5 分钟休息；M3 起有准备↔运行转场、暂停/继续按钮 morph、完成庆祝动效与状态驱动音触反馈。
 - designsystem：FocusMotion token + 统一 easing + Reduced Motion（duration 归零、转场退化 fade）；FocusFeedback（LocalFocusFeedback）按 prefs 过滤 Sound/Haptic 调用；TimerRing 进度平滑；StatisticCard 数字滚动。
 - Android 反馈实现：SoundPool 播运行时生成测试音（未下载素材，正式素材见 docs/ASSETS_NEEDED.md）；Vibrator createPredefined（26–28 回退 oneShot）；prefs 存 SharedPreferences(focus_feedback)，系统"移除动画"作为减弱动效默认值。Desktop 反馈 no-op。
-- M4：core 新增 focusStats/rangeStartDate/heatmapWeeks 纯函数；designsystem 新增 Heatmap 组件；STATS 页有范围切换、6 张统计卡与 12 周热力图，无完成记录时空态。
-- database 层无变化；Room schema 仍为 3。
+- M5：server/（Ktor+CIO+JDBC，Store 投影/幂等/回声排除，PG 生产、H2 测试）与 shared/sync（SyncTransport+SyncEngine）就绪；Room v4 sync_state；协议在 core/Protocol.kt。详见 docs/SYNC.md。
+- database：Room schema 4（新增 sync_state），迁移测试 v1/v2/v3→4。
 
 ## 下一步
-1. M5 Account/Backend/Sync：Ktor Server（auth/user/device/task/focus/sync/presence）、PostgreSQL schema、SyncEvent push/pull、离线 25m+30m=55m 端到端；客户端 outbox 已就绪。
+1. M5 第二阶段：shared/network（Ktor client CIO 实现 SyncTransport）、Android 登录/同步 UI、sync_state 扩展 token/serverUrl、自动同步调度；随后部署验证 PG。
 2. 真机专项：升级安装保留任务与设置；音质/触感/动效体感；倒计时 1 分钟、暂停恢复、杀进程、锁屏/旋转、通知拒权、重启与厂商省电。
-3. M6 完整自适应验收，M7 Owner/Observer，M8 Guard（含 Strict/Extreme 屏幕固定）。
+3. M6 完整自适应验收，M7 Owner/Observer + WebSocket Presence（Redis），M8 Guard（含 Strict/Extreme 屏幕固定）。
 4. 白噪音（Media3）、音量设置、正式音效素材、Desktop 声音未实现；outbox 不等于已联网同步。
 5. 每次可体验阶段更新版本/APK、PROGRESS/HANDOFF，构建和测试通过后 commit + push。
 

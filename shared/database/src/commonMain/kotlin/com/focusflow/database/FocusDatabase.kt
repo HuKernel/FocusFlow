@@ -37,6 +37,9 @@ data class TaskTagEntity(@Embedded val link: TaskTag)
 @Entity(tableName = "local_identity")
 data class LocalIdentity(@PrimaryKey val singleton: Int = 0, val userId: String, val deviceId: String)
 
+@Entity(tableName = "sync_state")
+data class SyncStateEntity(@PrimaryKey val singleton: Int = 0, val cursor: Long = 0)
+
 @Entity(tableName = "active_focus")
 data class ActiveFocusEntity(
     @PrimaryKey val singleton: Int = 0,
@@ -70,11 +73,15 @@ interface FocusDao {
     @Upsert suspend fun upsertTag(tag: TagEntity)
     @Query("SELECT * FROM task_tags WHERE taskId = :id") suspend fun tagsForTask(id: String): List<TaskTagEntity>
     @Query("SELECT * FROM task_tags WHERE tagId = :id") suspend fun linksForTag(id: String): List<TaskTagEntity>
-    @Insert suspend fun insertTaskTag(link: TaskTagEntity)
+    @Upsert suspend fun insertTaskTag(link: TaskTagEntity) // upsert：远端 CREATE 与本地重复关联时幂等
     @Query("DELETE FROM task_tags WHERE taskId = :taskId AND tagId = :tagId") suspend fun deleteTaskTag(taskId: String, tagId: String)
     @Query("SELECT * FROM local_identity WHERE singleton = 0") suspend fun identity(): LocalIdentity?
     @Insert suspend fun insertIdentity(identity: LocalIdentity)
     @Query("SELECT * FROM sync_events ORDER BY clientTimestamp, id") suspend fun events(): List<SyncEventEntity>
+    @Query("SELECT * FROM sync_events WHERE state != 'SYNCED' ORDER BY clientTimestamp, id") suspend fun pendingEvents(): List<SyncEventEntity>
+    @Upsert suspend fun saveEvent(event: SyncEventEntity)
+    @Query("SELECT * FROM sync_state WHERE singleton = 0") suspend fun syncState(): SyncStateEntity?
+    @Upsert suspend fun saveSyncState(state: SyncStateEntity)
     @Query("SELECT * FROM active_focus WHERE singleton = 0") suspend fun activeFocus(): ActiveFocusEntity?
     @Query("SELECT * FROM active_focus WHERE singleton = 0") fun observeActiveFocus(): Flow<ActiveFocusEntity?>
     @Upsert suspend fun saveActiveFocus(run: ActiveFocusEntity)
@@ -102,9 +109,10 @@ interface FocusDao {
 
 @Database(
     entities = [TaskEntity::class, SessionEntity::class, SyncEventEntity::class, TimerAnchorEntity::class,
-        ProjectEntity::class, TagEntity::class, TaskTagEntity::class, LocalIdentity::class, ActiveFocusEntity::class],
-    version = 3,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
+        ProjectEntity::class, TagEntity::class, TaskTagEntity::class, LocalIdentity::class, ActiveFocusEntity::class,
+        SyncStateEntity::class],
+    version = 4,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)],
 )
 @ConstructedBy(FocusDatabaseConstructor::class)
 abstract class FocusDatabase : RoomDatabase() {

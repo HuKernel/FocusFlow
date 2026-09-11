@@ -67,5 +67,16 @@
 - 交付 APK：`artifacts/FocusFlow-0.5.0-debug.apk`，apksigner 验证通过，SHA256 7276D6515A02F192047ABED3937ADBC45DC8877CD726CC8428601057B1E73890。
 - 真机渲染（热力图色阶可读性、统计切换流畅度）未实测；60fps 量化仍待性能阶段。
 
+## M5 第一阶段验收记录（2026-09-11）
+- 0.6.0 / versionCode 6：同步服务端与客户端引擎落地；删除 tasks 导航中不可达的 Destination.FOCUS 占位分支。
+- 新增 server 模块（Ktor 3.2.2 CIO + JDBC）：auth register/login（PBKDF2 + HMAC token）、sync push/pull、entities 投影 + applied_events 幂等、回声排除、per-user 单调 revision；生产 PostgreSQL、开发/测试 H2 MODE=PostgreSQL（UPDATE-then-INSERT 双兼容）。
+- 新增 shared/sync 模块：SyncTransport 接口 + SyncEngine（push outbox → SYNCED 标记 → pull → 事务 apply → cursor 推进）；Task/Project/Tag 按 revision 合并、FocusSession UUID IGNORE 合并、TaskTag tombstone；远端数据不回流 outbox。
+- Room schema v4（sync_state 表）+ AutoMigration 3→4；迁移测试扩展为 v1/v2/v3 → v4 全覆盖。
+- 全量验证 `E:/FocusFlowTools/m5-final2.log`：BUILD SUCCESSFUL in 2m 30s（含一次 daemon 重启解决 classes.jar 占用），36 项测试全部通过：core 16、database 7、designsystem 4、tasks UI 5、sync 2、server 2。
+- 关键测试：双设备离线（手机 25m 正计时 + 平板 30m）经真实 Store 合并后双方 completedMillis=55m、sessions 各 2 条；tombstone 跨设备删除；重复同步 pushed=0/pulled=0；HTTP 幂等重推 accepted=0；cursor 增量与回声排除。
+- lint 0 errors / 26 warnings：原 17 条 + 新增 9 条均为新依赖（ktor/h2/postgresql/logback）版本可升级提示。
+- 交付 APK：`artifacts/FocusFlow-0.6.0-debug.apk`，apksigner 验证通过，SHA256 8D057E008842FA5B9D24A5A35520B78AC6BABD84964D2FD32AA382CCE4BC7823。
+- App 内行为与 0.5.0 相同：Android 登录 UI、Ktor client HTTP transport、自动同步调度未接线，不声称 App 已能云同步。
+
 ## 下一阶段
-M5：Account + Ktor 后端 + 离线同步（SyncEvent/outbox 已就绪）。M6 完整自适应验收，M7 Owner/Observer，M8 Focus Guard。
+M5 第二阶段：shared/network（Ktor client CIO transport）+ Android 登录/同步入口与 sync_state 扩展（token/serverUrl）。M6 完整自适应验收，M7 Owner/Observer + WebSocket Presence，M8 Focus Guard。

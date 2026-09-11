@@ -56,3 +56,12 @@
 - 平均专注按毫秒 Long 整除后再转分钟显示，不做小数；本月含跨月的上周数据按自然月裁剪。
 - 热力图固定最近 12 周、不可滚动（YAGNI）；Canvas + aspectRatio 自适应，无滚动交互开销。
 - UI 测试的 fake clock 基准改为 System.currentTimeMillis()：统计范围用真实系统日期（state.today），硬编码未来 epoch 会让全部范围聚合为 0。
+
+## M5（第一阶段）
+- server 存储写成纯 JVM 类（Store，JDBC），Ktor HTTP 层薄封装；shared/sync 的 desktopTest 直接复用真 Store 当传输层，避免用 mock 重复实现服务端语义。
+- 协议模型（AuthRequest/PushRequest/ServerChange 等）放 core/Protocol.kt 单一来源，server 依赖 KMP core 模块的 JVM variant。
+- 实体投影单表（payload TEXT 全量）+ applied_events 幂等去重，不做事件溯源回放；pull 按 per-user 单调 revision 增量。
+- upsert 用 UPDATE-then-INSERT 而非 ON CONFLICT(cols) DO UPDATE：H2 即使 MODE=PostgreSQL 也不支持该语法，开发/测试与生产 PG 保持同一 DDL 路径。
+- 密码 PBKDF2WithHmacSHA256（JDK 内置，无新依赖）；token 为 HMAC 签名的无状态凭证，SERVER_SECRET 环境变量注入，默认值仅限本地开发。
+- 客户端 SyncEngine 不感知 HTTP：SyncTransport 接口由后续网络层实现；echo 排除 + 本地 revision 检查双保险防回环。
+- Room v4 只加 sync_state 表；Android 登录 UI 与自动同步未实现，不声称 App 已能云同步（outbox ≠ 已联网）。
