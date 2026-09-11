@@ -13,6 +13,9 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.ViewModelStore
 import com.focusflow.core.TaskStatus
+import com.focusflow.core.FocusClock
+import com.focusflow.core.TimerState
+import com.focusflow.focus.FocusViewModel
 import com.focusflow.database.*
 import java.nio.file.Files
 import org.junit.*
@@ -22,7 +25,14 @@ class TaskUiTest {
     private val directory = Files.createTempDirectory("focusflow-ui").toFile()
     private val database = openDatabase(directory.resolve("ui.db"))
     private val model = TasksViewModel(TaskRepository(database))
-    private val store = ViewModelStore().apply { put("tasks", model) }
+    private val clock = object : FocusClock {
+        var time = 0L
+        override fun epochMillis() = 1_800_000_000_000L + time
+        override fun monotonicMillis() = time
+        override fun bootId() = "test-boot"
+    }
+    private val focus = FocusViewModel(FocusRepository(database, clock))
+    private val store = ViewModelStore().apply { put("tasks", model); put("focus", focus) }
     private val owner = object : LifecycleOwner {
         override val lifecycle = LifecycleRegistry.createUnsafe(this).apply { currentState = Lifecycle.State.RESUMED }
     }
@@ -36,7 +46,7 @@ class TaskUiTest {
     private fun show(width: Int = 390) {
         compose.setContent {
             CompositionLocalProvider(LocalLifecycleOwner provides owner) {
-                Box(Modifier.requiredSize(width.dp, 760.dp)) { FocusApp(model) }
+                Box(Modifier.requiredSize(width.dp, 760.dp)) { FocusApp(model, focus) }
             }
         }
         compose.waitUntil(10000) { model.state.value.loaded }
@@ -80,7 +90,7 @@ class TaskUiTest {
         compose.waitUntil(10000) { model.state.value.data.tags.size == 1 && !model.state.value.busy }
         compose.onNodeWithText("完成").performClick()
         compose.onNodeWithText("专注").performClick()
-        compose.onNodeWithText("为下一次专注留出空间").assertExists()
+        compose.onNodeWithText("准备好，专注一件事").assertExists()
     }
 
     @Test fun invalidDateKeepsEditorAndDoesNotWriteTask() {
@@ -93,5 +103,33 @@ class TaskUiTest {
         compose.onNodeWithTag("save_task").assertExists()
         Assert.assertTrue(model.state.value.data.tasks.isEmpty())
         Assert.assertNotNull(model.state.value.editor)
+    }
+
+    @Test fun taskStartsStopwatchAndOnlyCompletedFocusCounts() {
+        show()
+        compose.onNodeWithTag("add_task").performClick()
+        compose.onNodeWithTag("task_title").performTextInput("Focus test")
+        compose.onNodeWithTag("save_task").performClick()
+        compose.waitUntil(10000) { model.state.value.data.tasks.size == 1 && model.state.value.editor == null }
+        val id = model.state.value.data.tasks.single().id
+        compose.onNodeWithTag("quick_focus_$id").performClick()
+        compose.onNodeWithText("正计时").performClick()
+        compose.onNodeWithTag("start_focus").performScrollTo().performClick()
+        compose.waitUntil(10000) { focus.state.value.run?.anchor?.state == TimerState.FOCUSING && !focus.state.value.busy }
+        compose.runOnIdle { clock.time += 60_000 }
+        compose.onNodeWithTag("pause_resume").performScrollTo().performClick()
+        compose.waitUntil(10000) { focus.state.value.run?.anchor?.state == TimerState.PAUSED && !focus.state.value.busy }
+        Assert.assertTrue(model.state.value.data.sessions.isEmpty())
+        compose.runOnIdle { clock.time += 30_000 }
+        compose.onNodeWithTag("pause_resume").performClick()
+        compose.waitUntil(10000) { focus.state.value.run?.anchor?.state == TimerState.FOCUSING && !focus.state.value.busy }
+        compose.runOnIdle { clock.time += 60_000 }
+        compose.onNodeWithTag("complete_focus").performScrollTo().performClick()
+        compose.waitUntil(10000) { model.state.value.data.sessions.size == 1 && !focus.state.value.busy }
+        Assert.assertEquals(120_000L, model.state.value.data.sessions.single().actualDuration)
+        compose.onNodeWithTag("dismiss_focus").performScrollTo().performClick()
+        compose.waitUntil(10000) { focus.state.value.run == null && !focus.state.value.busy }
+        compose.onNodeWithText("返回任务").performClick()
+        compose.onNodeWithTag("task_$id").assertExists()
     }
 }

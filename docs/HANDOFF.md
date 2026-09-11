@@ -1,5 +1,12 @@
 # FocusFlow 交接入口
 
+## M2 进行中检查点（优先于下方 M1 历史说明）
+- 已新增 TimerEngine、FocusRepository、Room v3 active_focus、feature/focus 和 Android 原生结束通知。
+- core/database 测试通过；Android assembleDebug、Desktop classes、原有 3 个任务 UI 测试通过（E:/FocusFlowTools/m2-ui.log，46s）。
+- 新增 taskStartsStopwatchAndOnlyCompletedFocusCounts UI 测试，尚待下一轮运行；接下来执行完整测试/lint、更新文档与版本 0.3.0、交付 APK。
+- 当前仍是 NORMAL 专注，没有屏幕固定、Accessibility 或跨设备同步；M8 再实现 Guard。
+- Windows classes.jar 占用已通过 gradlew --stop 后重建解决。
+
 更新时间：2026-09-11。当前版本：0.2.0 / versionCode 2；M1 构建和测试验收通过，下一阶段 M2。
 
 ## 开始前必读

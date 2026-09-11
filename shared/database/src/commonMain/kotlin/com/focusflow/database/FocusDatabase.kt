@@ -9,6 +9,7 @@ import com.focusflow.core.TimerAnchor
 import com.focusflow.core.Project
 import com.focusflow.core.Tag
 import com.focusflow.core.TaskTag
+import com.focusflow.core.FocusRun
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 
@@ -36,6 +37,20 @@ data class TaskTagEntity(@Embedded val link: TaskTag)
 @Entity(tableName = "local_identity")
 data class LocalIdentity(@PrimaryKey val singleton: Int = 0, val userId: String, val deviceId: String)
 
+@Entity(tableName = "active_focus")
+data class ActiveFocusEntity(
+    @PrimaryKey val singleton: Int = 0,
+    @Embedded(prefix = "session_") val session: FocusSession,
+    @Embedded(prefix = "anchor_") val anchor: TimerAnchor,
+    val bootId: String,
+    val taskTitle: String,
+    val breakDuration: Long,
+    val recoveredWithWallClock: Boolean,
+) {
+    constructor(run: FocusRun) : this(0, run.session, run.anchor, run.bootId, run.taskTitle, run.breakDuration, run.recoveredWithWallClock)
+    fun toRun() = FocusRun(session, anchor, bootId, taskTitle, breakDuration, recoveredWithWallClock)
+}
+
 @Dao
 interface FocusDao {
     @Query("SELECT * FROM tasks WHERE deletedAt IS NULL ORDER BY createdAt DESC")
@@ -60,6 +75,11 @@ interface FocusDao {
     @Query("SELECT * FROM local_identity WHERE singleton = 0") suspend fun identity(): LocalIdentity?
     @Insert suspend fun insertIdentity(identity: LocalIdentity)
     @Query("SELECT * FROM sync_events ORDER BY clientTimestamp, id") suspend fun events(): List<SyncEventEntity>
+    @Query("SELECT * FROM active_focus WHERE singleton = 0") suspend fun activeFocus(): ActiveFocusEntity?
+    @Query("SELECT * FROM active_focus WHERE singleton = 0") fun observeActiveFocus(): Flow<ActiveFocusEntity?>
+    @Upsert suspend fun saveActiveFocus(run: ActiveFocusEntity)
+    @Query("DELETE FROM active_focus WHERE singleton = 0") suspend fun clearActiveFocus()
+    @Query("SELECT * FROM focus_sessions WHERE id = :id") suspend fun session(id: String): SessionEntity?
 
     // Terminal records are insert-only: duplicate UUIDs cannot overwrite completed work.
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -82,9 +102,9 @@ interface FocusDao {
 
 @Database(
     entities = [TaskEntity::class, SessionEntity::class, SyncEventEntity::class, TimerAnchorEntity::class,
-        ProjectEntity::class, TagEntity::class, TaskTagEntity::class, LocalIdentity::class],
-    version = 2,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+        ProjectEntity::class, TagEntity::class, TaskTagEntity::class, LocalIdentity::class, ActiveFocusEntity::class],
+    version = 3,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 @ConstructedBy(FocusDatabaseConstructor::class)
 abstract class FocusDatabase : RoomDatabase() {

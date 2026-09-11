@@ -7,6 +7,8 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.focusflow.database.openDatabase
 import com.focusflow.database.TaskRepository
+import com.focusflow.database.FocusRepository
+import com.focusflow.core.DesktopFocusClock
 import com.focusflow.tasks.FocusRoute
 import java.io.File
 
@@ -15,6 +17,7 @@ fun main() = application {
     DisposableEffect(database) { onDispose { database.close() } }
     Window(onCloseRequest = ::exitApplication, title = "FocusFlow", state = rememberWindowState(width = 1100.dp, height = 760.dp)) {
         val repository = remember(database) { TaskRepository(database) }
-        FocusRoute(repository)
+        val focus = remember(database) { FocusRepository(database, DesktopFocusClock()) }
+        FocusRoute(repository, focus)
     }
 }

@@ -24,6 +24,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.focusflow.core.*
 import com.focusflow.database.TaskRepository
+import com.focusflow.database.FocusRepository
+import com.focusflow.focus.*
 import com.focusflow.designsystem.*
 
 private enum class Destination(val label: String, val icon: ImageVector) {
@@ -32,15 +34,23 @@ private enum class Destination(val label: String, val icon: ImageVector) {
 }
 
 @Composable
-fun FocusRoute(repository: TaskRepository) {
+fun FocusRoute(repository: TaskRepository, focusRepository: FocusRepository, onEnableReminders: (() -> Unit)? = null) {
     val model = viewModel { TasksViewModel(repository) }
-    FocusApp(model)
+    val focus = viewModel { FocusViewModel(focusRepository) }
+    FocusApp(model, focus, onEnableReminders)
 }
 
 @Composable
-fun FocusApp(model: TasksViewModel) = FocusTheme {
+fun FocusApp(model: TasksViewModel, focus: FocusViewModel, onEnableReminders: (() -> Unit)? = null) = FocusTheme {
     val state by model.state.collectAsStateWithLifecycle()
+    val focusState by focus.state.collectAsStateWithLifecycle()
+    ObserveFocusWhileVisible(focus)
     var selected by rememberSaveable { mutableStateOf(Destination.TODAY) }
+    var requestedTask by rememberSaveable { mutableStateOf<String?>(null) }
+    if (selected == Destination.FOCUS) {
+        FocusScreen(focus, state.data.tasks, requestedTask, { selected = Destination.TODAY }, onEnableReminders)
+        return@FocusTheme
+    }
     var filter by rememberSaveable { mutableStateOf(TaskFilter.ALL) }
     var search by rememberSaveable { mutableStateOf("") }
     var projectId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -108,6 +118,11 @@ fun FocusApp(model: TasksViewModel) = FocusTheme {
                         Button(onClick = model::retryLoading) { Text("重新加载") }
                     } else if (!state.loaded) item { CircularProgressIndicator() }
                     else if (taskPage) {
+                        focusState.run?.let { run -> item {
+                            OutlinedButton(onClick = { selected = Destination.FOCUS }, modifier = Modifier.fillMaxWidth()) {
+                                Text("${run.taskTitle} · ${if (run.anchor.state == TimerState.FOCUSING) "正在专注" else "查看本轮专注"}")
+                            }
+                        } }
                         if (selected == Destination.TODAY) item {
                             Text(state.today, color = FocusColors.Muted)
                             Spacer(Modifier.height(FocusSpacing.medium))
@@ -132,7 +147,8 @@ fun FocusApp(model: TasksViewModel) = FocusTheme {
                         if (visible.isEmpty()) item { EmptyState(if (selected == Destination.TODAY) "今天，先做好一件事" else "没有符合条件的任务", "点击右下角 + 创建任务，也可以调整筛选。") }
                         items(visible, key = { it.id }) { task ->
                             TaskCard(task, state, progress[task.id] ?: 0, onOpen = { detailId = task.id; detailOpen = true },
-                                onComplete = { model.complete(task, it) })
+                                onComplete = { model.complete(task, it) },
+                                onStart = { requestedTask = task.id; selected = Destination.FOCUS })
                         }
                     } else item {
                         when (selected) {
@@ -188,7 +204,7 @@ fun ChoiceMenu(label: String, value: String?, choices: List<Pair<String, String>
 }
 
 @Composable
-private fun TaskCard(task: Task, state: TasksState, millis: Long, onOpen: () -> Unit, onComplete: (Boolean) -> Unit) {
+private fun TaskCard(task: Task, state: TasksState, millis: Long, onOpen: () -> Unit, onComplete: (Boolean) -> Unit, onStart: () -> Unit) {
     Card(onClick = onOpen, modifier = Modifier.fillMaxWidth().testTag("task_${task.id}"), shape = FocusShapes.card,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Row(Modifier.padding(vertical = FocusSpacing.small, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -201,6 +217,8 @@ private fun TaskCard(task: Task, state: TasksState, millis: Long, onOpen: () -> 
                 if (task.targetFocusMinutes > 0) LinearProgressIndicator(progress = { (millis.toFloat() / (task.targetFocusMinutes * 60000L)).coerceIn(0f, 1f) }, Modifier.fillMaxWidth())
                 val names = state.data.links.filter { it.taskId == task.id }.mapNotNull { link -> state.data.tags.find { it.id == link.tagId }?.name }
                 if (names.isNotEmpty()) Text(names.joinToString("  ") { "#$it" }, color = FocusColors.Primary, style = MaterialTheme.typography.labelMedium)
+                if (task.status == TaskStatus.TODO || task.status == TaskStatus.IN_PROGRESS) Button(onClick = onStart,
+                    modifier = Modifier.testTag("quick_focus_${task.id}")) { Text("开始专注") }
             }
         }
     }

@@ -31,5 +31,8 @@
 - lint 0 errors / 14 warnings：13 条依赖可升级提示，1 条已有 Android 旧版备份配置提示；没有使用 baseline 隐藏。
 - APK 通过 apksigner 校验；交付路径 `artifacts/FocusFlow-0.2.0-debug.apk`。Android 真机升级/旋转尚未自动验证；本轮没有声称完整计时、同步或 Guard 可用。
 
-## 下一阶段
-M2：可靠计时引擎、FocusSession、完成/取消/暂停/恢复和系统时间变化测试。Timer 当前只有接口/状态/锚点，不能开始计时。
+## M2 开发中（2026-09-11）
+- 已实现锚点计时引擎、Room v3 活动快照、事务结算和会话 outbox；core/database 测试通过（日志 E:/FocusFlowTools/m2-data.log）。
+- 已接入任务“开始专注”、正计时/倒计时、暂停/恢复、完成/取消和休息页面，以及 Android 可选结束通知。
+- 当前正在执行 Android/Desktop 构建和界面测试，尚未验收 M2；首次构建遇到 Windows classes.jar 占用，停止 Gradle daemon 后重试。
+- 本阶段实现 NORMAL；STRICT/EXTREME 屏幕固定仍按产品计划在 M8 实现。

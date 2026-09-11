@@ -8,9 +8,10 @@ enum class TimerState { IDLE, PREPARING, FOCUSING, PAUSED, FOCUS_COMPLETED, BREA
 interface FocusClock {
     fun epochMillis(): Long
     fun monotonicMillis(): Long
+    fun bootId(): String
 }
 
-/** Persist on state changes, never on every UI tick. Engine implementation belongs to M2. */
+/** Persist on state changes, never on every UI tick. */
 @Serializable
 data class TimerAnchor(
     val sessionId: String,
@@ -25,10 +26,34 @@ data class TimerAnchor(
 }
 
 interface TimerController {
-    suspend fun start(taskId: String, plannedDuration: Long)
-    suspend fun pause()
-    suspend fun resume()
-    suspend fun cancel()
-    suspend fun complete()
-    suspend fun restore(): TimerAnchor?
+    suspend fun start(taskId: String, plannedDuration: Long, type: TimerType = TimerType.COUNTDOWN)
+    suspend fun pause(sessionId: String)
+    suspend fun resume(sessionId: String)
+    suspend fun cancel(sessionId: String)
+    suspend fun complete(sessionId: String)
+    suspend fun restore(): FocusRun?
+}
+
+@Serializable
+data class FocusRun(
+    val session: FocusSession,
+    val anchor: TimerAnchor,
+    val bootId: String,
+    val taskTitle: String,
+    val breakDuration: Long = 5 * 60_000,
+    val recoveredWithWallClock: Boolean = false,
+)
+
+interface FocusAlarm {
+    val available: Boolean
+    fun schedule(sessionId: String, delayMillis: Long)
+    fun cancel()
+    fun completed(taskTitle: String, isBreak: Boolean)
+}
+
+object NoFocusAlarm : FocusAlarm {
+    override val available = false
+    override fun schedule(sessionId: String, delayMillis: Long) = Unit
+    override fun cancel() = Unit
+    override fun completed(taskTitle: String, isBreak: Boolean) = Unit
 }

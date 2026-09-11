@@ -76,6 +76,7 @@ class TaskRepository(
     }
 
     suspend fun setCompleted(task: Task, completed: Boolean) = write {
+        requireNotFocusing(task.id)
         val latest = current(task)
         val timestamp = now()
         val changed = latest.copy(status = if (completed) TaskStatus.DONE else TaskStatus.TODO,
@@ -85,6 +86,7 @@ class TaskRepository(
     }
 
     suspend fun deleteTask(task: Task) = write {
+        requireNotFocusing(task.id)
         val latest = current(task)
         val changed = latest.copy(deletedAt = now(), updatedAt = now(), revision = latest.revision + 1)
         dao.upsertTask(TaskEntity(changed))
@@ -132,5 +134,10 @@ class TaskRepository(
             dao.deleteTaskTag(entry.link.taskId, tag.id)
             event("TaskTag", "${entry.link.taskId}:${tag.id}", SyncOperation.DELETE, entry.link)
         }
+    }
+
+    private suspend fun requireNotFocusing(taskId: String) {
+        val active = dao.activeFocus()?.toRun()
+        require(active?.session?.taskId != taskId || active.anchor.state !in listOf(TimerState.FOCUSING, TimerState.PAUSED)) { "请先结束该任务的专注，再修改完成状态或删除" }
     }
 }
