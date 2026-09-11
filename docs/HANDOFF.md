@@ -1,6 +1,6 @@
 ﻿# FocusFlow 交接入口
 
-更新时间：2026-09-12。当前版本 0.10.0 / versionCode 10，M8 Focus Guard 完成；下一阶段 M9。真机专项测试尚未完成。
+更新时间：2026-09-12。当前版本 1.0.0 / versionCode 11，M0–M9 全部里程碑完成；进入真机验收与 Beta 打磨阶段。
 
 ## 开始前必读
 1. AGENTS.md、FocusFlow_Product_Spec_v3.docx、FocusFlow_Prototype_v3.png。
@@ -20,11 +20,11 @@
 ```
 
 ## 已交付与验证
-- M3–M8 已交付；Guard 见 docs/FOCUS_GUARD.md，版本 0.10.0 / versionCode 10。
-- 全量日志 E:/FocusFlowTools/m8-final2.log：52 项测试通过：core 23、database 7、designsystem 4、tasks UI 10、focus 2、sync 2、network 1、server 3。
+- M0–M9 全部交付（任务/计时/反馈/统计/同步/自适应/Presence/Guard/Widget）；Guard 见 docs/FOCUS_GUARD.md，同步见 docs/SYNC.md。
+- 全量日志 E:/FocusFlowTools/m9-final.log：BUILD SUCCESSFUL in 2m 23s；52 项测试通过：core 23、database 7、designsystem 4、tasks UI 10、focus 2、sync 2、network 1、server 3。
 - lint 0 errors / 17 warnings：原 15 条 + 2 条 UseKtx（SharedPreferences.edit 标准写法提示，不加 core-ktx）。
-- APK artifacts/FocusFlow-0.10.0-debug.apk，apksigner 验证通过，可覆盖旧版 Debug 安装。
-- SHA256：75228BE6C476391F9AD3C6AF05A343A00D6FFFA6171E6DA6E599B3CDA2A18BA9。
+- APK artifacts/FocusFlow-1.0.0-debug.apk，apksigner 验证通过，可覆盖旧版 Debug 安装。
+- SHA256：240A2A2D358A3A07ACE09F5784E79351E60ED29560FBE16ED41D5758DBC2747E。
 - adb devices 当前无设备；未声称真机音质/触感/动画流畅度或省电专项已通过。GitHub Actions 已配置，未核验远程执行结果。
 
 ## 当前实现
@@ -33,12 +33,15 @@
 - designsystem：FocusMotion token + 统一 easing + Reduced Motion（duration 归零、转场退化 fade）；FocusFeedback（LocalFocusFeedback）按 prefs 过滤 Sound/Haptic 调用；TimerRing 进度平滑；StatisticCard 数字滚动。
 - Android 反馈实现：SoundPool 播运行时生成测试音（未下载素材，正式素材见 docs/ASSETS_NEEDED.md）；Vibrator createPredefined（26–28 回退 oneShot）；prefs 存 SharedPreferences(focus_feedback)，系统"移除动画"作为减弱动效默认值。Desktop 反馈 no-op。
 - M5：server/、shared/network（HttpFocusSyncApi + 中文错误映射）、shared/sync（Engine+Coordinator）、Room v5（sync_state 含 serverUrl/token/username）、「我的」页登录/同步 UI、Android 启动静默同步。详见 docs/SYNC.md。
+- M7：PresenceHub（Netty WS）+ HttpFocusPresence + Observer 面板/接管/让位（docs/SYNC.md）。
+- M8：四档 Focus 模式 + 降级链 + Guard 向导 + 无障碍守护服务 + 屏幕固定（docs/FOCUS_GUARD.md）。
+- M9：Glance 今日专注小组件（前台刷新）。
 - database：Room schema 5，迁移测试 v1–v4 → v5。
 
 ## 下一步
 1. 真机/本机联调：一台机器 `./gradlew :server:run`（DATABASE_URL 指向 PostgreSQL，缺省 H2 文件），手机填 http://<局域网IP>:8080 注册同步；双设备验证 25m+30m=55m。
 2. 真机专项：升级安装保留任务与设置；音质/触感/动效体感；倒计时 1 分钟、暂停恢复、杀进程、锁屏/旋转、通知拒权、重启与厂商省电。
-3. M9 Widget（Glance）/accessibility/performance polish；真机专项（通知/守护/省电/旋转/双设备同步与 presence）待设备；SOFT 的 UsageStats 中断聚合未接。
+3. 后续（按需）：真机专项清单见 PROGRESS「产品完成度与遗留」；SOFT 中断聚合、WS 自动重连、WorkManager 周期同步、正式音频素材、server 生产部署（PG+Redis）、Release 签名发布。
 4. 白噪音（Media3）、音量设置、正式音效素材、Desktop 声音未实现；outbox 不等于已联网同步。
 5. 每次可体验阶段更新版本/APK、PROGRESS/HANDOFF，构建和测试通过后 commit + push。
 

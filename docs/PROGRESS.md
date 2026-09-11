@@ -122,5 +122,14 @@
 - 交付 APK：`artifacts/FocusFlow-0.10.0-debug.apk`，apksigner 验证通过，SHA256 75228BE6C476391F9AD3C6AF05A343A00D6FFFA6171E6DA6E599B3CDA2A18BA9。
 - 未验证（无真机）：无障碍服务实际回调、厂商 ROM 守护行为、屏幕固定交互、SOFT 中断记录（UsageStats 聚合路径未接，文档已注明）。
 
-## 下一阶段
-M9：Widget（Glance）+ accessibility 完整性 + performance/polish + 1.0.0。
+## M9 验收记录（2026-09-12）
+- 1.0.0 / versionCode 11：M0–M9 全部里程碑交付完成。
+- Glance 桌面小组件：今日专注分钟（无数据显示"今天，先专注一件事"），点击打开 App；App 进入前台时刷新（MainActivity onStart updateAll），manifest 声明 APPWIDGET_UPDATE receiver。
+- accessibility：既有交互均为文本化语义（checkbox contentDescription、导航 label、按钮文本）；读屏与键盘导航系统审计待真机。
+- 全量验证 `E:/FocusFlowTools/m9-final.log`：BUILD SUCCESSFUL in 2m 23s（--no-parallel），52 项测试全部通过（core 23、database 7、designsystem 4、tasks UI 10、focus 2、sync 2、network 1、server 3）。
+- lint 0 errors / 40 warnings（新增 2 条为 Glance 依赖相关提示类）。
+- 交付 APK：`artifacts/FocusFlow-1.0.0-debug.apk`，apksigner 验证通过，SHA256 240A2A2D358A3A07ACE09F5784E79351E60ED29560FBE16ED41D5758DBC2747E。
+
+## 产品完成度与遗留
+- 已交付：离线优先任务/项目/标签、锚点计时与进程恢复、Session 进度聚合、Motion/Sound/Haptic、统计与热力图、账号+自建同步服务端（PG/H2）+ 双设备离线合并、自适应 Phone/Tablet、Live Presence/Owner/Observer/原子接管、Focus Guard 四档模式+向导+合规服务、桌面小组件。
+- 未完成（不声称）：真机专项验收（通知、守护回调、厂商省电、旋转/折叠、双设备 HTTP/WS 实测）；SOFT 模式的 UsageStats 中断聚合；WS 自动重连；后台周期同步（WorkManager）；正式音频素材（仍为生成测试音）；server 生产部署（PG/Redis 多实例）；Release 签名与商店发布。

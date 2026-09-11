@@ -93,3 +93,9 @@
 - 白名单 = 本应用 + Launcher（运行时解析）+ 用户手动添加包名；不做安装列表枚举（避免 QUERY_ALL_PACKAGES），DECISIONS 记录未来如需应用选择器再单独设计。
 - tasks feature 的 compose 依赖从 implementation 改 api：androidApp 的 Guard 向导需要同一 JB compose 版本的 foundation/material3，避免引入第二套 androidx 坐标。
 - 构建环境：Windows 下强杀 daemon 会遗留缓存锁导致后续构建假死，清理 *.lock + --no-parallel 恢复；Netty 依赖经代理缓慢下载属网络现象非工程问题。
+
+## M9
+- 桌面小组件用 Glance 1.1.1 最小实现：显示今日专注分钟（或引导文案），点击打开 App；刷新时机是 App 进入前台（onStart updateAll），不做 WorkManager 周期刷新（YAGNI，按用户反馈再加）。
+- widget 数据走 Application 直查 Room COMPLETED sessions 按本地日期聚合，与 Stats 同口径；不引入新的数据通道。
+- accessibility 现状：关键交互均有文本或 contentDescription（checkbox、FAB、导航 label、统计卡文本化）；TalkBack/键盘导航的系统性审计留待真机（桌面测试无法覆盖读屏）。
+- 1.0.0 定为功能里程碑完成线：真机专项（通知/守护/省电/旋转/双设备）与 Beta 打磨仍在清单中，不因版本号宣称已验收。
