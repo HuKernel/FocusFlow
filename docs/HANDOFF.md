@@ -19,7 +19,15 @@
 - 远程：`https://github.com/HuKernel/FocusFlow.git`。
 - 初始提交：`ad5f4e3`。
 - README 原先只有项目标题；详细约束实际在 AGENTS.md。
-- 系统 PATH 未提供 Java/Gradle/Android SDK；正在 E 盘配置独立工具链。
+- `. ./scripts/env.ps1` 设置当前终端环境；SDK 复用 `E:/WordFlow/android-sdk`。
+- JDK：`E:/FocusFlowTools/jdk/jdk-17.0.18+8`；Gradle：`E:/FocusFlowTools/gradle/gradle-8.13/bin/gradle.bat`。
+- `GRADLE_USER_HOME=E:/FocusFlowTools/gradle-home`，临时文件在 E 盘。
+- 本机网络：Git 使用 `http://127.0.0.1:7898` 代理。Gradle 首轮 Maven 依赖直连可下载。
+- Wrapper 的 Gradle 发行包官方地址跳转 GitHub，直连超时；镜像下载后已与官方 SHA-256 对比。
+- 额外的 `E:/FocusFlowTools/android-sdk` 是发现旧 SDK 前安装的副本，当前项目不使用；未擅自删除。
 
 ## 下一步
-完成 M0 工程、核心模型、Room skeleton、共享 UI 和测试；执行 Android 构建与 Desktop 编译后再声明 M0 完成。
+1. 检查 `E:/FocusFlowTools/build.log` 的完整构建结果。core 3 项测试已通过。
+2. 运行新增 Compose UI smoke 测试及 Android lint。
+3. 维护 Room schema、验证结果，commit + push 后更新交接。
+4. M0 未验收前不得标完成；M1 实现 Task/Today/Project/Tag 和 ViewModel，M2 才有真实 Timer。
