@@ -1,9 +1,9 @@
 # 开发进度
 
-## 2026-09-11
+## M0 验收记录（2026-09-11）
 - 已检查初始仓库、读取产品文档与原型。
 - 已创建交接入口，确认所有工具安装到 E 盘。
-- M0 工程基线构建/测试验收通过；Android 真机运行待验证。M1–M9 未开始。
+- M0 工程基线构建/测试验收通过；Android 真机运行待验证。
 - 产品基线提交 `8e02769` 已推送 origin/main。
 - 已建立 Android/Desktop 入口、core/database/designsystem、版本目录、Wrapper、CI 和文档。
 - 已复用 E:\WordFlow\android-sdk；独立 JDK/Gradle/缓存位于 E:\FocusFlowTools。
@@ -16,15 +16,20 @@
 - `adb devices` 无设备，未进行 Android 安装/真机运行；没有声称完整 Timer、双设备同步或 Guard 已工作。
 - GitHub Actions 已配置；本地验证通过不等同于已核验远程 CI 结果。
 
-## 下一阶段
-M1：任务创建/编辑/完成/软删除、Today 真实筛选、Project/Tag、ViewModel；保持 Room 与 outbox 事务一致。
-M2：可靠计时引擎与完整恢复测试。当前 Timer 只有接口/状态/锚点，不能开始计时。
-
-## M1 开发中（2026-09-11）
+## M1 验收记录（2026-09-11）
 - 新增 shared/feature/tasks，业务页面从 designsystem 移出。
 - 已实现任务表单、完成/重开、软删除、搜索、日期/项目/标签/优先级筛选与详情。
 - 新增项目/标签的创建、重命名、删除；删除组织结构保留任务并清理关联。
 - 数据库 v2 增加 projects/tags/task_tags/local_identity；使用 Room AutoMigration 1→2，保留 v1 schema。
 - TaskRepository 所有业务写入与 SyncEvent 在一个 IMMEDIATE 事务中完成；编辑检查 revision 防止旧快照覆盖新值。
 - Android 数据库提升到 Application 生命周期，避免旋转时关闭 ViewModel 正在使用的数据库。
-- 版本更新为 0.2.0 / versionCode 2。完整构建/UI/迁移验收仍在执行，尚未交付新版 APK。
+- Today 显示真实今日任务与专注统计，连续专注按完成 Session 的本地日期计算。
+- 开发检查点 `a78e057` 已推送 origin/main。
+- 版本 0.2.0 / versionCode 2；Android assembleDebug、Desktop classes、lintDebug 通过。最终日志：`E:/FocusFlowTools/m1-ui.log`（BUILD SUCCESSFUL in 49s）。
+- 16 项测试全部通过：core 6、database 5、designsystem 2、feature/tasks UI 3。
+- 迁移测试保留旧 Task 和 Session；UI 测试实际创建/编辑/完成/删除任务、管理项目和标签、拒绝无效日期。
+- lint 0 errors / 14 warnings：13 条依赖可升级提示，1 条已有 Android 旧版备份配置提示；没有使用 baseline 隐藏。
+- APK 通过 apksigner 校验；交付路径 `artifacts/FocusFlow-0.2.0-debug.apk`。Android 真机升级/旋转尚未自动验证；本轮没有声称完整计时、同步或 Guard 可用。
+
+## 下一阶段
+M2：可靠计时引擎、FocusSession、完成/取消/暂停/恢复和系统时间变化测试。Timer 当前只有接口/状态/锚点，不能开始计时。

@@ -6,6 +6,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.ViewModelStore
 import com.focusflow.core.TaskStatus
 import com.focusflow.database.*
@@ -18,15 +23,22 @@ class TaskUiTest {
     private val database = openDatabase(directory.resolve("ui.db"))
     private val model = TasksViewModel(TaskRepository(database))
     private val store = ViewModelStore().apply { put("tasks", model) }
+    private val owner = object : LifecycleOwner {
+        override val lifecycle = LifecycleRegistry.createUnsafe(this).apply { currentState = Lifecycle.State.RESUMED }
+    }
 
     @After fun close() {
-        compose.runOnIdle { store.clear() }
+        compose.runOnIdle { owner.lifecycle.currentState = Lifecycle.State.DESTROYED; store.clear() }
         database.close()
         directory.deleteRecursively()
     }
 
     private fun show(width: Int = 390) {
-        compose.setContent { Box(Modifier.requiredSize(width.dp, 760.dp)) { FocusApp(model) } }
+        compose.setContent {
+            CompositionLocalProvider(LocalLifecycleOwner provides owner) {
+                Box(Modifier.requiredSize(width.dp, 760.dp)) { FocusApp(model) }
+            }
+        }
         compose.waitUntil(10000) { model.state.value.loaded }
     }
 
