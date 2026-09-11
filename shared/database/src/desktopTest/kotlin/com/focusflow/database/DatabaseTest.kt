@@ -7,6 +7,21 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
 class DatabaseTest {
+    @Test fun outboxFailureRollsBackTaskWrite() = runBlocking {
+        val file = Files.createTempDirectory("focusflow-transaction").resolve("test.db").toFile()
+        val db = openDatabase(file)
+        try {
+            val task = Task("task", "local", "Original", createdAt = 0)
+            val event = SyncEventEntity(SyncEvent("event", "phone", "Task", "task", SyncOperation.CREATE, "{}", 0))
+            db.focusDao().saveTaskWithEvent(TaskEntity(task), event)
+            assertFails { db.focusDao().saveTaskWithEvent(TaskEntity(task.copy(title = "Must roll back")), event) }
+            assertEquals("Original", db.focusDao().observeTasks().first().single().task.title)
+        } finally {
+            db.close()
+            file.parentFile.deleteRecursively()
+        }
+    }
+
     @Test fun persistsTasksAndMergesSessionIdsWithoutDoubleCounting() = runBlocking {
         val file = Files.createTempDirectory("focusflow-test").resolve("test.db").toFile()
         var db = openDatabase(file)
