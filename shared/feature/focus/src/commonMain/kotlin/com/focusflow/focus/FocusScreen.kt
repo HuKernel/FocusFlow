@@ -152,12 +152,23 @@ fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?
                     }
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error); TextButton(onClick = model::retry) { Text("重试恢复") } }
                 }
-                if (wide) Surface(Modifier.width(260.dp).fillMaxHeight()) {
+                if (wide) Surface(Modifier.width(260.dp).fillMaxHeight().testTag("focus_side_pane")) {
+                    val activeRun = run
                     Column(Modifier.padding(FocusSpacing.large), verticalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
-                        Text("当前设备", style = MaterialTheme.typography.titleMedium)
-                        Text("本地计时 · 当前设备控制")
-                        Text("计时和记录保存在本机。跨设备观察与接力尚未开启。", color = FocusColors.Muted)
-                        Text("离开专注页面不会停止计时；暂停时不累计专注时长。", color = FocusColors.Muted)
+                        Text("本轮进度", style = MaterialTheme.typography.titleMedium)
+                        if (activeRun == null) Text("开始专注后，这里显示本轮进度与设备状态。", color = FocusColors.Muted)
+                        else {
+                            Text(activeRun.taskTitle, style = MaterialTheme.typography.titleSmall)
+                            val planned = activeRun.anchor.plannedDuration
+                            val done = activeRun.session.actualDuration
+                            if (planned > 0) LinearProgressIndicator(progress = { (state.elapsed.toFloat() / planned).coerceIn(0f, 1f) }, Modifier.fillMaxWidth())
+                            Text(if (planned > 0) "计划 ${timerText(planned)}" else "正计时 · 不设上限", color = FocusColors.Muted)
+                            Text("暂停累计 ${timerText(activeRun.session.pausedDuration)}", color = FocusColors.Muted)
+                        }
+                        Text("设备", style = MaterialTheme.typography.titleSmall)
+                        Text("本机控制 · 记录保存在这台设备", color = FocusColors.Muted)
+                        Text("离开页面不会停止计时；暂停时不累计专注时长。", color = FocusColors.Muted)
+                        Text("跨设备观察与接力将在多设备阶段开启。", color = FocusColors.Muted)
                     }
                 }
             }

@@ -45,10 +45,10 @@ class TaskUiTest {
         directory.deleteRecursively()
     }
 
-    private fun show(width: Int = 390, sync: com.focusflow.sync.SyncCoordinator? = null) {
+    private fun show(width: Int = 390, height: Int = 760, sync: com.focusflow.sync.SyncCoordinator? = null) {
         compose.setContent {
             CompositionLocalProvider(LocalLifecycleOwner provides owner) {
-                Box(Modifier.requiredSize(width.dp, 760.dp)) { FocusApp(model, focus, sync) }
+                Box(Modifier.requiredSize(width.dp, height.dp)) { FocusApp(model, focus, sync) }
             }
         }
         compose.waitUntil(10000) { model.state.value.loaded }
@@ -179,5 +179,30 @@ class TaskUiTest {
         compose.waitUntil(10000) { runBlocking { database.focusDao().syncState()?.token == "fake-token" } }
         compose.onNodeWithText("已登录：alice").assertExists()
         compose.onNodeWithTag("sync_now").assertExists()
+    }
+
+    @Test fun mediumLayoutUsesRailAndPaneWithoutBottomBar() {
+        show(700)
+        compose.onNodeWithTag("navigation_rail").assertExists()
+        compose.onNodeWithTag("supporting_pane").assertExists()
+        compose.onNodeWithTag("bottom_navigation").assertDoesNotExist()
+    }
+
+    @Test fun expandedSelectsFirstTaskInDetailPane() {
+        show(1100)
+        compose.onNodeWithTag("add_task").performClick()
+        compose.onNodeWithTag("task_title").performTextInput("First task")
+        compose.onNodeWithTag("save_task").performClick()
+        compose.waitUntil(10000) { model.state.value.data.tasks.size == 1 && model.state.value.editor == null }
+        compose.waitUntil(10000) { runBlocking { database.focusDao().task(model.state.value.data.tasks.single().id) } != null }
+        compose.onNodeWithText("选择一项任务，查看计划与专注进度。").assertDoesNotExist()
+        compose.onNodeWithText("累计专注：0 / 25 分钟").assertExists()
+    }
+
+    @Test fun landscapeShortHeightKeepsRailVisible() {
+        show(1100, 390)
+        compose.onNodeWithTag("navigation_rail").assertExists()
+        compose.onNodeWithTag("supporting_pane").assertExists()
+        compose.onNodeWithText("FocusFlow").assertExists()
     }
 }

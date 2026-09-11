@@ -71,3 +71,9 @@
 - 账号凭据（serverUrl/token/username）存 Room v5 sync_state 而非 SharedPreferences：与 cursor 同处一行、跨平台一致、迁移可测；token 只存本地不上传。
 - HTTP 客户端用 Ktor CIO 单引擎（Android/Desktop 同一 commonMain 实现），不做 OkHttp/engine 分平台；错误信息在 network 层集中映射为中文。
 - 启动自动同步只做一次静默尝试（LaunchedEffect + runCatching），周期后台同步等真实用户反馈后按需加 WorkManager，YAGNI。
+
+## M6
+- 自适应判定维持 windowLayout(widthDp) 三档（600/840），不引入 material3-adaptive 依赖：现有 BoxWithConstraints 已覆盖 compact/medium/expanded 的导航与面板差异，断点与 Material 建议一致。
+- 宽窗口 List-Detail 默认选中首个可见任务（LaunchedEffect 幂等回填），避免右侧空态；筛选后选中项失效时自动重选，用户主动选择不被覆盖。
+- Focus 宽屏侧栏显示本轮真实进度（计划/已专注/暂停累计 + 进度条）与设备说明；Device presence 数据 M7 才存在，不预做空壳。
+- 键鼠 hover/右键菜单属于 M9 polish；折叠屏/分屏由宽度驱动自动适配，真机验收待设备。

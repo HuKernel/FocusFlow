@@ -88,6 +88,10 @@ fun FocusApp(model: TasksViewModel, focus: FocusViewModel, sync: SyncCoordinator
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val layout = windowLayout(maxWidth.value.toInt())
         val compact = layout == WindowLayout.COMPACT
+        // 宽窗口 List-Detail：默认选中首个任务，避免右侧空态
+        LaunchedEffect(visible, compact) {
+            if (!compact && (detailId == null || visible.none { it.id == detailId })) detailId = visible.firstOrNull()?.id
+        }
         Scaffold(
             snackbarHost = { SnackbarHost(snackbars) },
             floatingActionButton = {

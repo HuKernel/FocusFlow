@@ -90,5 +90,14 @@
 - 交付 APK：`artifacts/FocusFlow-0.7.0-debug.apk`，apksigner 验证通过，SHA256 877519B8C192A9ABFB37F8916298B18D4DFF0B48DA44AEE6F5A6F9E1E0F0533B。
 - 未验证：真机双设备通过真实 HTTP 同步（需一台机器运行 ./gradlew :server:run 并配置 DATABASE_URL）；后台周期同步未实现。
 
+## M6 验收记录（2026-09-11）
+- 0.8.0 / versionCode 8：完整自适应布局验收。
+- 宽窗口（Medium/Expanded）List-Detail：默认选中首个任务，右侧详情栏不再空置；筛选变化后自动重选有效任务，用户主动选择优先。
+- Focus 宽屏（≥840dp）侧栏升级为真实进度面板：任务名、计划/正计时、进度条、暂停累计、设备状态说明；准备态显示引导文案。
+- 新增自适应冒烟测试：Medium(700dp) Navigation Rail + 220dp 面板且无底栏；Expanded(1100dp) 默认选中任务、详情栏显示"累计专注"；矮横屏(1100x390) Rail/面板/标题正常渲染。旋转/分屏由同一宽度逻辑驱动。
+- 全量验证 `E:/FocusFlowTools/m6-final.log`：BUILD SUCCESSFUL in 56s，41 项测试通过：core 16、database 7、designsystem 4、tasks UI 9、sync 2、network 1、server 2。lint 0 errors / 29 warnings（无新增）。
+- 交付 APK：`artifacts/FocusFlow-0.8.0-debug.apk`，apksigner 验证通过，SHA256 12FCE02989E1578C273C7F12D2290F3B081CB6E5059D16D49199BB9787EC3D86。
+- 真实折叠屏/分屏/键鼠 hover 属真机与 M9 范畴，未在本轮声称验证。
+
 ## 下一阶段
-M6：Tablet Expanded / List-Detail 完整自适应验收（rotation、split screen、foldable、键鼠）。M7 Owner/Observer + WebSocket Presence（Redis）。M8 Focus Guard。
+M7：Live Presence + Owner/Observer（WebSocket 事件、共享锚点估算 remaining、Continue on this device 原子转移）。M8 Focus Guard（Setup Wizard、权限降级、OEM 指引）。
