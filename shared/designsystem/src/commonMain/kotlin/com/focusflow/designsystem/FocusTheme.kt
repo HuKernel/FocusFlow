@@ -1,5 +1,6 @@
 package com.focusflow.designsystem
 
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -23,12 +24,13 @@ object FocusMotion {
     const val standard = 220
     const val emphasized = 320
     const val celebration = 600
+    val easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
     fun duration(reducedMotion: Boolean, duration: Int = standard): Int = if (reducedMotion) 0 else duration
 }
 enum class SoundEvent { FOCUS_START, FOCUS_PAUSE, FOCUS_RESUME, FOCUS_COMPLETE, TASK_COMPLETE, BREAK_START, ACHIEVEMENT, ERROR }
 enum class HapticEvent { TAP, SELECTION, START_FOCUS, SUCCESS, WARNING, HANDOFF }
-interface SoundController { fun play(event: SoundEvent) }
-interface HapticController { fun perform(event: HapticEvent) }
+fun interface SoundController { fun play(event: SoundEvent) }
+fun interface HapticController { fun perform(event: HapticEvent) }
 
 @Composable
 fun FocusTheme(content: @Composable () -> Unit) {

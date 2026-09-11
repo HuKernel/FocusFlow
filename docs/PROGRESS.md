@@ -44,5 +44,17 @@
 - Windows classes.jar 占用通过停止 daemon 后重建解决。Android 真机通知、重启、旋转与省电恢复仍待设备实测，桌面测试不替代真机验收。
 - 交付 APK：`artifacts/FocusFlow-0.3.0-debug.apk`。
 
+## M3 验收记录（2026-09-11）
+- 0.4.0 / versionCode 4：Motion/Sound/Haptic 框架落地。
+- designsystem：FocusFeedback（prefs StateFlow 按开关过滤 sound/haptic 调用）+ LocalFocusFeedback；FocusMotion 增加统一 easing；TimerRing 进度平滑动画；StatisticCard 数字滚动。
+- tasks：任务插入/删除/重排 animateItem、完成标题颜色过渡、勾选完成音效+触感；「我的」页新增音效/震动/减弱动效开关。
+- focus：准备↔运行转场（reduced 时纯 fade）、暂停/继续按钮 morph、完成庆祝 spring scale；开始/暂停/继续/休息按钮触发反馈，专注完成由状态驱动播一次（倒计时自然结束也覆盖），错误播 ERROR。
+- Android：SoundPool 播放运行时生成的测试音（不下载素材）；Vibrator createPredefined + API 26–28 回退；prefs 持久化 SharedPreferences，系统"移除动画"作为减弱动效默认值；manifest 新增 VIBRATE 权限。Desktop 反馈为 no-op，未声称桌面有声音。
+- 全量验证 `E:/FocusFlowTools/m3-full.log`：BUILD SUCCESSFUL in 52s，Android assembleDebug/lintDebug、Desktop classes、28 项测试全部通过（core 13、database 7、designsystem 4、feature/tasks UI 4）。
+- 新增测试：feedbackRespectPrefsSwitches（开关过滤 + 回调持久化）、offVariantIsSilent；既有 Reduced Motion duration 归零测试保留。
+- lint 0 errors / 17 warnings：原 15 条（版本升级/备份/exact alarm）+ 2 条 UseKtx（SharedPreferences.edit）；不为消警告引入 core-ktx，见 DECISIONS。
+- 交付 APK：`artifacts/FocusFlow-0.4.0-debug.apk`，apksigner 验证通过（Debug 证书，可覆盖旧版），SHA256 395715bc2bef7cebd3c43d97e99eeea374ecbba02e55fd63e69038a6f54e62e2。
+- 真机体感（音质、震动强度、动画流畅度、Reduced Motion 开关实效）与省电专项仍未验证；动画性能目标 60fps 待 M4 统计页宏观看板时用 Macrobenchmark 类工具量化，本轮以编译/测试/UI 冒烟为验收。
+
 ## 下一阶段
-M3：Motion/Sound/Haptic 框架与状态反馈，保留 Reduced Motion。STRICT/EXTREME 屏幕固定仍在 M8；M5/M7 才实现云同步与 Owner/Observer。
+M4：Statistics Overview / Heatmap（本地聚合优先），复用 M3 统计数字动效。M5 Account/Backend/Sync，M6 完整自适应验收，M7 Owner/Observer，M8 Focus Guard。

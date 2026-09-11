@@ -1,6 +1,6 @@
 ﻿# FocusFlow 交接入口
 
-更新时间：2026-09-11。当前版本 0.3.0 / versionCode 3，M2 构建与自动测试通过；下一阶段 M3。真机专项测试尚未完成。
+更新时间：2026-09-11。当前版本 0.4.0 / versionCode 4，M3 构建与自动测试通过；下一阶段 M4。真机专项测试尚未完成。
 
 ## 开始前必读
 1. AGENTS.md、FocusFlow_Product_Spec_v3.docx、FocusFlow_Prototype_v3.png。
@@ -20,30 +20,25 @@
 ```
 
 ## 已交付与验证
-- M1 最终提交 09b001a；M2 开发检查点 5ce38f2 已推送，最终修正与本文随随后提交。
-- 全量日志 E:/FocusFlowTools/m2-final.log：BUILD SUCCESSFUL in 1m 3s。
-- Android build/lint、Desktop classes、26 项测试通过：core 13 / database 7 / designsystem 2 / tasks UI 4。
-- 最后改动通知设置回流与 v1/v2→v3 数据库升级测试，E:/FocusFlowTools/m2-release.log 复验 build/lint/database 成功，28s。
-- lint 0 errors / 15 warnings：14 条原有版本/备份提示，1 条 exact alarm 权限提示，代码已检查 canScheduleExactAlarms 并捕获撤权异常；没有 baseline 隐藏。
-- APK artifacts/FocusFlow-0.3.0-debug.apk，apksigner 验证通过，可覆盖旧版 Debug 安装。
-- SHA256：9CDEBE961B5BBC12C2CE21A5DFA346333FA5434167726A9F7622FE9F774BF20D。
-- adb devices 当前无设备；未声称真机通知、后台/重启、旋转或省电专项已通过。GitHub Actions 已配置，未核验远程执行结果。
+- M2 最终提交见 PROGRESS；M3（Motion/Sound/Haptic 框架）本轮交付，版本 0.4.0 / versionCode 4。
+- 全量日志 E:/FocusFlowTools/m3-full.log：BUILD SUCCESSFUL in 52s；Android build/lint、Desktop classes、28 项测试通过：core 13 / database 7 / designsystem 4 / tasks UI 4。
+- lint 0 errors / 17 warnings：原 15 条 + 2 条 UseKtx（SharedPreferences.edit 标准写法提示，不加 core-ktx）。
+- APK artifacts/FocusFlow-0.4.0-debug.apk，apksigner 验证通过，可覆盖旧版 Debug 安装。
+- SHA256：395715BC2BEF7CEBD3C43D97E99EEEA374ECBBA02E55FD63E69038A6F54E62E2。
+- adb devices 当前无设备；未声称真机音质/触感/动画流畅度或省电专项已通过。GitHub Actions 已配置，未核验远程执行结果。
 
 ## 当前实现
-- feature/tasks：离线任务 CRUD、Today、搜索筛选、项目标签管理，真实 Room Flow + TasksViewModel。
-- feature/focus：普通倒计时/正计时、暂停继续、完成/取消、5 分钟休息；列表与详情开始入口、活动/完成记录返回入口。
-- core/TimerEngine.kt：纯函数时间锚点状态机；Android elapsedRealtime + BOOT_COUNT，跨开机 epoch 估算并提示，Desktop 跨进程也估算。
-- database/FocusRepository.kt：Mutex 串行平台闹钟与 IMMEDIATE 事务；Session/outbox/active_focus 一次提交。旧 sessionId 回调不影响新会话。
-- active_focus 是单行运行快照；focus_sessions 只写终态，完成后快照保留给总结界面，关闭总结才清除。旧 timer_anchors 为兼容保留，不作为运行状态源。
-- Room schema 3，保留 1/2/3 JSON，AutoMigration 1→2→3；真实 SQLite 测试分别从 v1 和 v2 升级后验证旧 Task/Session 与启动专注。
-- 只有 COMPLETED.actualDuration 计入进度；取消不累计、暂停不计时、休息不改 Session。完成专注不自动勾选整个任务；进行中的任务不能勾选完成或删除。
-- AndroidFocusAlarm/Receiver 在 androidApp：可选通知、exact/inexact 回退、开机/升级恢复，没有 timer FGS、精确权限或无障碍权限。平台提醒失败不撤销本地事务；系统可能延后/遗漏通知，前台恢复兜底。
+- feature/tasks：离线任务 CRUD、Today、搜索筛选、项目标签管理；M3 起列表项有插入/删除/重排动画与完成颜色过渡，「我的」页有音效/震动/减弱动效开关。
+- feature/focus：普通倒计时/正计时、暂停继续、完成/取消、5 分钟休息；M3 起有准备↔运行转场、暂停/继续按钮 morph、完成庆祝动效与状态驱动音触反馈。
+- designsystem：FocusMotion token + 统一 easing + Reduced Motion（duration 归零、转场退化 fade）；FocusFeedback（LocalFocusFeedback）按 prefs 过滤 Sound/Haptic 调用；TimerRing 进度平滑；StatisticCard 数字滚动。
+- Android 反馈实现：SoundPool 播运行时生成测试音（未下载素材，正式素材见 docs/ASSETS_NEEDED.md）；Vibrator createPredefined（26–28 回退 oneShot）；prefs 存 SharedPreferences(focus_feedback)，系统"移除动画"作为减弱动效默认值。Desktop 反馈 no-op。
+- database/core 层无变化；Room schema 仍为 3。
 
 ## 下一步
-1. M3：复用 designsystem 的 Motion/Sound/Haptic 接口与 tokens，实现状态反馈、Reduced Motion；音频没有合法素材时按产品要求保留接口/合法测试音，不随意下载素材。
-2. 真机专项：升级安装保留任务；倒计时 1 分钟；暂停离开再恢复；杀进程重开；锁屏/旋转；通知拒绝/撤销；设备重启与厂商省电。
-3. M4 Stats，M5 Account/Sync，M6 完整自适应验收，M7 Owner/Observer，M8 Guard。用户曾询问锁屏，已说明本阶段 NORMAL，不能声称 Strict/Extreme 已实现。
-4. 云同步、账号、Guard、任务日程提醒、重复任务、编辑草稿进程恢复尚未实现；outbox 不等于已联网同步。
+1. M4 Stats：Today/Week/Month 聚合、Session Count、Streak、Interrupt、Heatmap（本地计算优先），复用统计数字动效；可考虑 Macrobenchmark 量化 60fps。
+2. 真机专项：升级安装保留任务与设置；音质/触感/动效体感；倒计时 1 分钟、暂停恢复、杀进程、锁屏/旋转、通知拒权、重启与厂商省电。
+3. M5 Account/Sync，M6 完整自适应验收，M7 Owner/Observer，M8 Guard（含 Strict/Extreme 屏幕固定）。
+4. 白噪音（Media3）、音量设置、正式音效素材、Desktop 声音未实现；outbox 不等于已联网同步。
 5. 每次可体验阶段更新版本/APK、PROGRESS/HANDOFF，构建和测试通过后 commit + push。
 
 ## 已知工程问题
@@ -52,3 +47,4 @@
 - Desktop Compose 测试必须提供 RESUMED LocalLifecycleOwner，结束时清理 ViewModelStore 与数据库。
 - 跨重启且系统改时间不能完全可靠估时；已有用户提示，不承诺绝对准确。
 - 系统通知是事务后的副作用，提交后突然死亡可能漏提醒，但不会丢已结算时长。
+- SoundPool 首次加载为异步：极快点击首音可能哑一声，启动后即正常。

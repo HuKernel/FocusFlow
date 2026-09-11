@@ -1,15 +1,30 @@
 package com.focusflow.focus
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -21,12 +36,23 @@ import com.focusflow.designsystem.*
 @Composable
 fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?, onBack: () -> Unit, onEnableReminders: (() -> Unit)?) {
     val state by model.state.collectAsStateWithLifecycle()
+    val feedback = LocalFocusFeedback.current
+    val prefs by feedback.prefs.collectAsState()
     var selectedTask by rememberSaveable(requestedTask) { mutableStateOf(requestedTask) }
     var type by rememberSaveable { mutableStateOf(TimerType.COUNTDOWN) }
     var minutes by rememberSaveable { mutableStateOf("25") }
     var validation by rememberSaveable { mutableStateOf<String?>(null) }
     var cancelling by rememberSaveable { mutableStateOf(false) }
     val run = state.run
+    LaunchedEffect(state.error) { if (state.error != null) feedback.play(SoundEvent.ERROR) }
+    var announcedCompletion by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(run?.session?.id, run?.anchor?.state) {
+        val activeRun = run
+        if (activeRun != null && activeRun.anchor.state == TimerState.FOCUS_COMPLETED && announcedCompletion != activeRun.session.id) {
+            announcedCompletion = activeRun.session.id
+            feedback.play(SoundEvent.FOCUS_COMPLETE); feedback.perform(HapticEvent.SUCCESS)
+        }
+    }
     Scaffold { padding ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
             val wide = maxWidth >= 840.dp
@@ -39,57 +65,88 @@ fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?
                         Text("普通专注", color = FocusColors.Primary)
                     }
                     if (!state.loaded) CircularProgressIndicator()
-                    else if (run == null) {
-                        Text("准备好，专注一件事", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        val choices = tasks.filter { it.status == TaskStatus.TODO || it.status == TaskStatus.IN_PROGRESS }
-                        if (choices.isEmpty()) Text("请先创建一项未完成的任务。")
-                        choices.forEach { task -> FilterChip(selectedTask == task.id, { selectedTask = task.id }, label = { Text(task.title) }, modifier = Modifier.fillMaxWidth()) }
-                        Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                            FilterChip(type == TimerType.COUNTDOWN, { type = TimerType.COUNTDOWN }, label = { Text("倒计时") })
-                            FilterChip(type == TimerType.STOPWATCH, { type = TimerType.STOPWATCH }, label = { Text("正计时") })
-                        }
-                        if (type == TimerType.COUNTDOWN) {
-                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                listOf(15, 25, 45).forEach { preset -> FilterChip(minutes == "$preset", { minutes = "$preset" }, label = { Text("$preset 分钟") }) }
-                            }
-                            OutlinedTextField(minutes, { minutes = it }, label = { Text("专注分钟（1–1440）") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.testTag("focus_minutes"))
-                        }
-                        Text("普通模式可随时离开或取消，不限制其他应用。", color = FocusColors.Muted)
-                        Text(if (state.remindersAvailable) "结束提醒已开启，系统省电时可能延后" else "结束提醒未开启，计时仍正常保存", style = MaterialTheme.typography.bodySmall)
-                        if (!state.remindersAvailable && onEnableReminders != null) OutlinedButton(onClick = onEnableReminders) { Text("开启结束提醒") }
-                        validation?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                        Button(onClick = {
-                            val duration = minutes.toLongOrNull()
-                            if (type == TimerType.COUNTDOWN && (duration == null || duration !in 1L..1440L)) validation = "请输入 1–1440 之间的整数分钟"
-                            else { validation = null; selectedTask?.let { model.start(it, if (type == TimerType.STOPWATCH) 0 else duration!! * 60000, type) } }
-                        }, enabled = !state.busy && choices.any { it.id == selectedTask }, modifier = Modifier.testTag("start_focus")) { Text("开始专注") }
-                    } else {
-                        val phase = run.anchor.state
-                        val running = phase == TimerState.FOCUSING || phase == TimerState.PAUSED
-                        val breaking = phase == TimerState.BREAKING
-                        Text(run.taskTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        val stopwatch = run.session.type == TimerType.STOPWATCH && !breaking
-                        val display = if (!running && !breaking) run.session.actualDuration else if (stopwatch) state.elapsed / 1000 * 1000 else state.remaining
-                        TimerRing(display,
-                            if (stopwatch) 1f else state.elapsed.toFloat() / run.anchor.plannedDuration.coerceAtLeast(1),
-                            when (phase) { TimerState.PAUSED -> "已暂停"; TimerState.BREAKING -> "休息中"; TimerState.FOCUSING -> if (stopwatch) "已专注" else "剩余时间"; else -> "本轮已结束" })
-                        if (run.recoveredWithWallClock) Text("设备重启后的时长按系统时间估算。", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
-                        when {
-                            running -> {
-                                Button(onClick = { if (phase == TimerState.PAUSED) model.resume(run.session.id) else model.pause(run.session.id) },
-                                    enabled = !state.busy, modifier = Modifier.testTag("pause_resume")) { Text(if (phase == TimerState.PAUSED) "继续专注" else "暂停") }
-                                if (stopwatch) Button(onClick = { model.complete(run.session.id) }, enabled = !state.busy, modifier = Modifier.testTag("complete_focus")) { Text("完成专注") }
-                                OutlinedButton(onClick = { cancelling = true }, enabled = !state.busy) { Text("取消本次专注") }
-                            }
-                            breaking -> {
-                                Text("专注已记录，休息时间不会计入任务进度。")
-                                OutlinedButton(onClick = { model.skipBreak(run.session.id) }, enabled = !state.busy) { Text("结束休息") }
-                            }
-                            else -> {
-                                Text(if (phase == TimerState.CANCELLED) "已取消，本轮不计入专注进度" else "专注已完成，记录 ${timerText(run.session.actualDuration)}", color = FocusColors.Primary)
-                                if (phase == TimerState.FOCUS_COMPLETED) Button(onClick = { model.startBreak(run.session.id) }, enabled = !state.busy) { Text("休息 5 分钟") }
-                                OutlinedButton(onClick = { model.dismiss(run.session.id) }, enabled = !state.busy, modifier = Modifier.testTag("dismiss_focus")) { Text("结束本轮") }
+                    else AnimatedContent(run == null,
+                        transitionSpec = {
+                            val duration = FocusMotion.duration(prefs.reducedMotion, FocusMotion.emphasized)
+                            if (prefs.reducedMotion) fadeIn(tween(duration)) togetherWith fadeOut(tween(duration))
+                            else (fadeIn(tween(duration)) + slideInVertically(tween(duration, easing = FocusMotion.easing)) { it / 6 }) togetherWith
+                                (fadeOut(tween(duration)) + slideOutVertically(tween(duration, easing = FocusMotion.easing)) { -it / 6 })
+                        }, label = "focus_stage") { setupStage ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                            if (setupStage) {
+                                Text("准备好，专注一件事", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                val choices = tasks.filter { it.status == TaskStatus.TODO || it.status == TaskStatus.IN_PROGRESS }
+                                if (choices.isEmpty()) Text("请先创建一项未完成的任务。")
+                                choices.forEach { task -> FilterChip(selectedTask == task.id, { selectedTask = task.id }, label = { Text(task.title) }, modifier = Modifier.fillMaxWidth()) }
+                                Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                    FilterChip(type == TimerType.COUNTDOWN, { type = TimerType.COUNTDOWN }, label = { Text("倒计时") })
+                                    FilterChip(type == TimerType.STOPWATCH, { type = TimerType.STOPWATCH }, label = { Text("正计时") })
+                                }
+                                if (type == TimerType.COUNTDOWN) {
+                                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                        listOf(15, 25, 45).forEach { preset -> FilterChip(minutes == "$preset", { minutes = "$preset" }, label = { Text("$preset 分钟") }) }
+                                    }
+                                    OutlinedTextField(minutes, { minutes = it }, label = { Text("专注分钟（1–1440）") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.testTag("focus_minutes"))
+                                }
+                                Text("普通模式可随时离开或取消，不限制其他应用。", color = FocusColors.Muted)
+                                Text(if (state.remindersAvailable) "结束提醒已开启，系统省电时可能延后" else "结束提醒未开启，计时仍正常保存", style = MaterialTheme.typography.bodySmall)
+                                if (!state.remindersAvailable && onEnableReminders != null) OutlinedButton(onClick = onEnableReminders) { Text("开启结束提醒") }
+                                validation?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                                Button(onClick = {
+                                    val duration = minutes.toLongOrNull()
+                                    if (type == TimerType.COUNTDOWN && (duration == null || duration !in 1L..1440L)) validation = "请输入 1–1440 之间的整数分钟"
+                                    else {
+                                        validation = null
+                                        selectedTask?.let {
+                                            feedback.play(SoundEvent.FOCUS_START); feedback.perform(HapticEvent.START_FOCUS)
+                                            model.start(it, if (type == TimerType.STOPWATCH) 0 else duration!! * 60000, type)
+                                        }
+                                    }
+                                }, enabled = !state.busy && choices.any { it.id == selectedTask }, modifier = Modifier.testTag("start_focus")) { Text("开始专注") }
+                            } else if (run != null) {
+                                val phase = run.anchor.state
+                                val running = phase == TimerState.FOCUSING || phase == TimerState.PAUSED
+                                val breaking = phase == TimerState.BREAKING
+                                Text(run.taskTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                val stopwatch = run.session.type == TimerType.STOPWATCH && !breaking
+                                val display = if (!running && !breaking) run.session.actualDuration else if (stopwatch) state.elapsed / 1000 * 1000 else state.remaining
+                                TimerRing(display,
+                                    if (stopwatch) 1f else state.elapsed.toFloat() / run.anchor.plannedDuration.coerceAtLeast(1),
+                                    when (phase) { TimerState.PAUSED -> "已暂停"; TimerState.BREAKING -> "休息中"; TimerState.FOCUSING -> if (stopwatch) "已专注" else "剩余时间"; else -> "本轮已结束" })
+                                if (run.recoveredWithWallClock) Text("设备重启后的时长按系统时间估算。", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
+                                when {
+                                    running -> {
+                                        Button(onClick = {
+                                            if (phase == TimerState.PAUSED) { feedback.play(SoundEvent.FOCUS_RESUME); model.resume(run.session.id) }
+                                            else { feedback.play(SoundEvent.FOCUS_PAUSE); model.pause(run.session.id) }
+                                            feedback.perform(HapticEvent.TAP)
+                                        }, enabled = !state.busy, modifier = Modifier.testTag("pause_resume")) {
+                                            Crossfade(phase == TimerState.PAUSED, animationSpec = tween(FocusMotion.duration(prefs.reducedMotion, FocusMotion.fast)), label = "pause_morph") { paused ->
+                                                Row {
+                                                    if (paused) { Icon(Icons.Filled.PlayArrow, null); Spacer(Modifier.width(FocusSpacing.small)); Text("继续专注") }
+                                                    else { Icon(Icons.Filled.Pause, null); Spacer(Modifier.width(FocusSpacing.small)); Text("暂停") }
+                                                }
+                                            }
+                                        }
+                                        if (stopwatch) Button(onClick = { model.complete(run.session.id) },
+                                            enabled = !state.busy, modifier = Modifier.testTag("complete_focus")) { Text("完成专注") }
+                                        OutlinedButton(onClick = { cancelling = true }, enabled = !state.busy) { Text("取消本次专注") }
+                                    }
+                                    breaking -> {
+                                        Text("专注已记录，休息时间不会计入任务进度。")
+                                        OutlinedButton(onClick = { model.skipBreak(run.session.id) }, enabled = !state.busy) { Text("结束休息") }
+                                    }
+                                    else -> {
+                                        val celebrated = phase == TimerState.FOCUS_COMPLETED
+                                        val scale by animateFloatAsState(if (celebrated) 1f else 0.92f,
+                                            if (prefs.reducedMotion) tween(0) else spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow), label = "celebration")
+                                        Text(if (phase == TimerState.CANCELLED) "已取消，本轮不计入专注进度" else "专注已完成，记录 ${timerText(run.session.actualDuration)}",
+                                            color = FocusColors.Primary, modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale })
+                                        if (celebrated) Button(onClick = { feedback.play(SoundEvent.BREAK_START); model.startBreak(run.session.id) }, enabled = !state.busy) { Text("休息 5 分钟") }
+                                        OutlinedButton(onClick = { model.dismiss(run.session.id) }, enabled = !state.busy, modifier = Modifier.testTag("dismiss_focus")) { Text("结束本轮") }
+                                    }
+                                }
                             }
                         }
                     }
@@ -108,6 +165,6 @@ fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?
     }
     if (cancelling && run != null) AlertDialog(onDismissRequest = { cancelling = false }, title = { Text("取消本次专注？") },
         text = { Text("已用时间会保存为取消记录，但不会增加任务的专注进度。") },
-        confirmButton = { TextButton(onClick = { model.cancel(run.session.id); cancelling = false }, enabled = !state.busy) { Text("确认取消") } },
+        confirmButton = { TextButton(onClick = { feedback.perform(HapticEvent.WARNING); model.cancel(run.session.id); cancelling = false }, enabled = !state.busy) { Text("确认取消") } },
         dismissButton = { TextButton(onClick = { cancelling = false }) { Text("继续专注") } })
 }

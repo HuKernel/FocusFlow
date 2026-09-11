@@ -15,6 +15,7 @@ kotlin {
             implementation(project(":shared:designsystem"))
             implementation(compose.runtime)
             implementation(compose.foundation)
+            implementation(compose.animation)
             implementation(compose.material3)
             implementation(compose.materialIconsExtended)
             implementation(libs.lifecycle.viewmodel)

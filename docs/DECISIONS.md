@@ -38,3 +38,13 @@
 - Android 结束提醒使用 AlarmManager，不为 tick 启动 FGS；仅主动点击后申请通知。没有新增精确闹钟特殊权限：运行时能力允许则 exact，否则 inexact，SecurityException 再回退。
 - lint 对 exact 调用仍有 MissingPermission warning：manifest 未声明特殊权限，但调用前检查 canScheduleExactAlarms 且捕获撤权异常；保留诊断，不隐藏。未来精确提醒向导按产品需要单独设计。
 - [AlarmManager 官方约束](https://developer.android.com/develop/background-work/services/alarms)。
+
+## M3
+- 反馈框架集中在 designsystem：FocusFeedback 持有 prefs StateFlow 并按开关过滤 SoundController/HapticController 调用；UI 通过 LocalFocusFeedback 读取，Desktop/测试默认 Off，不引入 DI 框架。
+- 统一 motion：FocusMotion token（80/140/220/320/600ms）+ 单一 CubicBezierEasing(0.2,0,0,1)；Reduced Motion 时 duration() 返回 0 且转场退化为纯 fade，保留颜色/透明度过渡。
+- 音效不下载素材：AndroidSoundController 运行时生成 16-bit PCM 正弦衰减测试音写 cacheDir WAV，SoundPool(USAGE_ASSISTANCE_SONIFICATION) 播放；正式音效与白噪音需求记录在 docs/ASSETS_NEEDED.md。
+- 触感走系统 Vibrator：API 29+ VibrationEffect.createPredefined，26–28 回退 createOneShot；manifest 仅新增普通 VIBRATE 权限。
+- 反馈偏好持久化用 Android SharedPreferences（focus_feedback），系统"移除动画"（ANIMATOR_DURATION_SCALE=0）作为减弱动效默认值；不为三个布尔引入 DataStore。
+- 完成音效由状态驱动（观察 anchor.state 进入 FOCUS_COMPLETED 播一次并按 sessionId 去重），倒计时自然结束与手动完成一致；开始/暂停/继续/休息由按钮触发。操作失败只显示错误文本并播 ERROR，不回滚反馈。
+- 任务列表动效用 LazyColumn animateItem + 标题颜色过渡；不做逐项 spring 缩放，避免列表滑动开销。
+- 新增 lint 警告 UseKtx x2（SharedPreferences.edit）：不为消警告引入 core-ktx 依赖，保留标准写法。

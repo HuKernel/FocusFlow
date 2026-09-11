@@ -10,4 +10,5 @@ class FocusFlowApplication : Application() {
     private val database by lazy { openDatabase(this) }
     val tasks by lazy { TaskRepository(database) }
     val focus by lazy { FocusRepository(database, AndroidFocusClock(this), AndroidFocusAlarm(this)) }
+    val feedback by lazy { androidFeedback(this) }
 }

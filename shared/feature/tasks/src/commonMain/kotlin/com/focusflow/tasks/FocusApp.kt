@@ -1,5 +1,7 @@
 package com.focusflow.tasks
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -146,7 +148,8 @@ fun FocusApp(model: TasksViewModel, focus: FocusViewModel, onEnableReminders: ((
                         }
                         if (visible.isEmpty()) item { EmptyState(if (selected == Destination.TODAY) "今天，先做好一件事" else "没有符合条件的任务", "点击右下角 + 创建任务，也可以调整筛选。") }
                         items(visible, key = { it.id }) { task ->
-                            TaskCard(task, state, progress[task.id] ?: 0, onOpen = { detailId = task.id; detailOpen = true },
+                            TaskCard(task, state, progress[task.id] ?: 0, modifier = Modifier.animateItem(),
+                                onOpen = { detailId = task.id; detailOpen = true },
                                 onComplete = { model.complete(task, it) },
                                 onStart = { requestedTask = task.id; selected = Destination.FOCUS })
                         }
@@ -157,6 +160,7 @@ fun FocusApp(model: TasksViewModel, focus: FocusViewModel, onEnableReminders: ((
                             else -> {
                                 EmptyState("你的专注空间", "本地模式 · 数据保存在这台设备，尚未开启云同步。")
                                 OutlinedButton(onClick = { managing = true; model.clearError() }, Modifier.padding(top = FocusSpacing.medium)) { Text("管理项目和标签") }
+                                FeedbackSettings()
                             }
                         }
                     }
@@ -194,6 +198,27 @@ fun priorityLabel(priority: Priority): String = when (priority) {
 }
 
 @Composable
+private fun FeedbackSettings() {
+    val feedback = LocalFocusFeedback.current
+    val prefs by feedback.prefs.collectAsState()
+    Column(Modifier.padding(top = FocusSpacing.large), verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+        Text("反馈", style = MaterialTheme.typography.titleMedium)
+        SettingSwitch("音效", prefs.sound, "task_setting_sound") { value -> feedback.setPrefs(prefs.copy(sound = value)); feedback.perform(HapticEvent.TAP) }
+        SettingSwitch("震动反馈", prefs.haptic, "task_setting_haptic") { value -> feedback.setPrefs(prefs.copy(haptic = value)); if (value) feedback.perform(HapticEvent.TAP) }
+        SettingSwitch("减弱动效", prefs.reducedMotion, "task_setting_reduced") { value -> feedback.setPrefs(prefs.copy(reducedMotion = value)) }
+        Text("减弱动效会减少位移和缩放动画，保留颜色与淡入淡出。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun SettingSwitch(label: String, value: Boolean, tag: String, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, Modifier.weight(1f))
+        Switch(value, onChange, modifier = Modifier.testTag(tag))
+    }
+}
+
+@Composable
 fun ChoiceMenu(label: String, value: String?, choices: List<Pair<String, String>>, onSelect: (String?) -> Unit, noneLabel: String = "不限") {
     var expanded by remember { mutableStateOf(false) }
     Box {
@@ -206,13 +231,22 @@ fun ChoiceMenu(label: String, value: String?, choices: List<Pair<String, String>
 }
 
 @Composable
-private fun TaskCard(task: Task, state: TasksState, millis: Long, onOpen: () -> Unit, onComplete: (Boolean) -> Unit, onStart: () -> Unit) {
-    Card(onClick = onOpen, modifier = Modifier.fillMaxWidth().testTag("task_${task.id}"), shape = FocusShapes.card,
+private fun TaskCard(task: Task, state: TasksState, millis: Long, modifier: Modifier = Modifier, onOpen: () -> Unit, onComplete: (Boolean) -> Unit, onStart: () -> Unit) {
+    val feedback = LocalFocusFeedback.current
+    val prefs by feedback.prefs.collectAsState()
+    val done = task.status == TaskStatus.DONE
+    val titleColor by animateColorAsState(if (done) FocusColors.Muted else MaterialTheme.colorScheme.onSurface,
+        tween(FocusMotion.duration(prefs.reducedMotion, FocusMotion.fast), easing = FocusMotion.easing), label = "task_title")
+    Card(onClick = onOpen, modifier = modifier.fillMaxWidth().testTag("task_${task.id}"), shape = FocusShapes.card,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Row(Modifier.padding(vertical = FocusSpacing.small, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(task.status == TaskStatus.DONE, onComplete, enabled = !state.busy, modifier = Modifier.testTag("complete_${task.id}").semantics { contentDescription = "完成任务：${task.title}" })
+            Checkbox(done, {
+                onComplete(it)
+                if (it) { feedback.play(SoundEvent.TASK_COMPLETE); feedback.perform(HapticEvent.SUCCESS) }
+                else feedback.perform(HapticEvent.SELECTION)
+            }, enabled = !state.busy, modifier = Modifier.testTag("complete_${task.id}").semantics { contentDescription = "完成任务：${task.title}" })
             Column(Modifier.weight(1f).padding(end = FocusSpacing.medium), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(task.title, fontWeight = FontWeight.SemiBold, textDecoration = if (task.status == TaskStatus.DONE) TextDecoration.LineThrough else null)
+                Text(task.title, fontWeight = FontWeight.SemiBold, color = titleColor, textDecoration = if (done) TextDecoration.LineThrough else null)
                 Text(listOfNotNull(state.data.projects.find { it.id == task.projectId }?.name, task.plannedDate, if (task.priority != Priority.NONE) priorityLabel(task.priority) else null).joinToString(" · "),
                     color = FocusColors.Muted, style = MaterialTheme.typography.labelMedium)
                 Text("${millis / 60000} / ${task.targetFocusMinutes} 分钟", color = FocusColors.Muted, style = MaterialTheme.typography.labelMedium)
