@@ -74,6 +74,7 @@ fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?
                         }, label = "focus_stage") { setupStage ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
                             if (setupStage) {
+                                state.remote?.let { remote -> ObserverPanel(remote, state.busy, model::takeover) }
                                 Text("准备好，专注一件事", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                                 val choices = tasks.filter { it.status == TaskStatus.TODO || it.status == TaskStatus.IN_PROGRESS }
                                 if (choices.isEmpty()) Text("请先创建一项未完成的任务。")
@@ -178,4 +179,24 @@ fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?
         text = { Text("已用时间会保存为取消记录，但不会增加任务的专注进度。") },
         confirmButton = { TextButton(onClick = { feedback.perform(HapticEvent.WARNING); model.cancel(run.session.id); cancelling = false }, enabled = !state.busy) { Text("确认取消") } },
         dismissButton = { TextButton(onClick = { cancelling = false }) { Text("继续专注") } })
+}
+
+@Composable
+fun ObserverPanel(remote: RemoteFocus, busy: Boolean, onTakeover: () -> Unit) {
+    Card(Modifier.fillMaxWidth().testTag("observer_panel"), shape = FocusShapes.card,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(Modifier.fillMaxWidth().padding(FocusSpacing.large), verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+            Text("另一台设备正在专注", style = MaterialTheme.typography.labelMedium, color = FocusColors.Primary)
+            Text(remote.snapshot.taskTitle, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            val stopwatch = remote.snapshot.plannedDuration == 0L
+            Text(when {
+                remote.snapshot.timerState == TimerState.PAUSED -> "已暂停"
+                stopwatch -> "已专注 ${timerText(remote.elapsedMillis)}"
+                else -> "剩余 ${timerText(remote.remainingMillis)}"
+            }, color = FocusColors.Muted)
+            Text("发起设备 ${remote.snapshot.ownerDeviceId.takeLast(8)}", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
+            Button(onClick = onTakeover, enabled = !busy, modifier = Modifier.testTag("takeover_focus")) { Text("在这台设备继续") }
+            Text("接管后原设备转为观察；计时基于共享锚点估算。", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
+        }
+    }
 }

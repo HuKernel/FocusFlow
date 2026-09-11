@@ -11,6 +11,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":shared:database"))
+            api(project(":shared:network"))
             implementation(project(":shared:designsystem"))
             implementation(compose.runtime)
             implementation(compose.foundation)
@@ -21,6 +22,13 @@ kotlin {
             implementation(libs.lifecycle.runtime)
         }
         val desktopMain by getting { dependencies { implementation(libs.coroutines.swing) } }
+        val desktopTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(libs.coroutines.test)
+                implementation(libs.coroutines.swing)
+            }
+        }
     }
 }
 android { namespace = "com.focusflow.focus"; compileSdk = 36; defaultConfig { minSdk = 26 } }

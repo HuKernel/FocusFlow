@@ -7,8 +7,10 @@ dependencies {
     implementation(project(":shared:core"))
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.netty)
     implementation(libs.ktor.server.auth)
     implementation(libs.ktor.server.negotiation)
+    implementation(libs.ktor.server.websockets)
     implementation(libs.ktor.serialization.json)
     implementation(libs.coroutines)
     implementation(libs.serialization)
@@ -18,6 +20,8 @@ dependencies {
     testImplementation(libs.ktor.server.test)
     testImplementation(kotlin("test"))
     testImplementation(libs.h2)
+    testImplementation(libs.ktor.client.cio)
+    testImplementation(libs.ktor.client.websockets)
 }
 application { mainClass = "com.focusflow.server.ServerKt" }
 kotlin { jvmToolchain(17) }

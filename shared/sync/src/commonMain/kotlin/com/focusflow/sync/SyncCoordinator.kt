@@ -28,6 +28,12 @@ class SyncCoordinator(private val database: FocusDatabase, private val api: Focu
         dao.saveSyncState(current.copy(serverUrl = null, token = null, username = null))
     }
 
+    /** presence 连接所需凭据：url、token、deviceId；未登录返回 null。 */
+    suspend fun presenceContext(): Triple<String?, String?, String?>? {
+        val state = dao.syncState() ?: return null
+        return Triple<String?, String?, String?>(state.serverUrl, state.token, dao.identity()?.deviceId)
+    }
+
     /** 未登录返回 null；网络/服务端异常向上抛出由调用方展示。 */
     suspend fun syncOnce(): SyncEngine.Summary? {
         val state = dao.syncState()

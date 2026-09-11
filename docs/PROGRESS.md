@@ -99,5 +99,16 @@
 - 交付 APK：`artifacts/FocusFlow-0.8.0-debug.apk`，apksigner 验证通过，SHA256 12FCE02989E1578C273C7F12D2290F3B081CB6E5059D16D49199BB9787EC3D86。
 - 真实折叠屏/分屏/键鼠 hover 属真机与 M9 范畴，未在本轮声称验证。
 
+## M7 验收记录（2026-09-11）
+- 0.9.0 / versionCode 9：Live Presence + Owner/Observer + 原子 handoff。
+- core：PresenceKind/PresenceSnapshot/PresenceMessage + estimateRemoteFocus（共享锚点估算，测试覆盖暂停冻结/非负剩余/owner 判定）。
+- server：PresenceHub（内存、每用户单活跃会话）+ WS /api/v1/ws（token query 认证）+ presence 查询 + handoff 原子转移；主引擎换 Netty（CIO 在本环境 WS 升级 400，有最小复现佐证）。
+- network：HttpFocusPresence（Ktor client WS + HTTP handoff）；FocusPresence 接口可注入测试。
+- focus：FocusViewModel 上报生命周期（STARTED/PAUSED/RESUMED/COMPLETED/CANCELLED）；Observer 面板（任务/状态/剩余/发起设备 +「在这台设备继续」）；adopt 恢复同一 sessionId、releaseLocal 让位不结算；FocusRepository 新增 adopt/currentDeviceId（竞态安全）。
+- 全量验证 `E:/FocusFlowTools/m7-final2.log`：BUILD SUCCESSFUL in 2m 27s（daemon 重启一次），48 项测试通过：core 20、database 7、designsystem 4、tasks UI 9、focus 2、sync 2、network 1、server 3。
+- lint 0 errors / 33 warnings（新增 4 条 ktor ws/netty 版本提示）。
+- 交付 APK：`artifacts/FocusFlow-0.9.0-debug.apk`，apksigner 验证通过，SHA256 81BB604DEA752DBBF4FFCCE29C276C14802BED2782CAF02BD317B7FE19C36070。
+- 未验证：真机双设备 WS 稳定性与后台重连；登录后 presence 生效需重启 App。
+
 ## 下一阶段
-M7：Live Presence + Owner/Observer（WebSocket 事件、共享锚点估算 remaining、Continue on this device 原子转移）。M8 Focus Guard（Setup Wizard、权限降级、OEM 指引）。
+M8：Focus Guard（四档模式、Setup Wizard、权限降级链、OEM 指引、Emergency Exit、Screen Pinning 路径）。M9：Widget + accessibility + polish。

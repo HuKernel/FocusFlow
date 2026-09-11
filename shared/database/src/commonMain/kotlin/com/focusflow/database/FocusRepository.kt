@@ -52,6 +52,39 @@ class FocusRepository(
         updateAlarm(run)
     }
 
+    suspend fun currentDeviceId(): String? {
+        dao.identity()?.let { return it.deviceId }
+        // 并发首调可能撞唯一键：插入失败时回读既有身份
+        runCatching { dao.insertIdentity(LocalIdentity(userId = newId(), deviceId = newId())) }
+        return dao.identity()?.deviceId
+    }
+
+    /** Observer 接管：按共享锚点在本机恢复同一 sessionId 的计时；完成时按原 UUID 结算。 */
+    suspend fun adopt(taskId: String, taskTitle: String, sessionId: String, plannedDuration: Long, type: TimerType, elapsedMillis: Long) = mutations.withLock {
+        val run = write {
+            val existing = dao.activeFocus()?.toRun()
+            require(existing == null || existing.anchor.state in listOf(TimerState.FOCUS_COMPLETED, TimerState.CANCELLED, TimerState.SESSION_FINISHED)) { "已有专注或休息正在进行，请先结束" }
+            val identity = dao.identity() ?: LocalIdentity(userId = newId(), deviceId = newId()).also { dao.insertIdentity(it) }
+            val epoch = clock.epochMillis()
+            val session = FocusSession(sessionId, identity.userId, taskId, identity.deviceId, identity.deviceId,
+                type = type, plannedDuration = plannedDuration, startedAt = epoch - elapsedMillis)
+            val adopted = FocusRun(session, TimerAnchor(sessionId, TimerState.FOCUSING, epoch, clock.monotonicMillis(),
+                plannedDuration, elapsedBeforeAnchor = elapsedMillis), clock.bootId(), taskTitle)
+            dao.saveActiveFocus(ActiveFocusEntity(adopted))
+            adopted
+        }
+        updateAlarm(run)
+    }
+
+    /** 被接管方让位：清掉本地运行态但不结算、不发事件，会话由新 owner 负责。 */
+    suspend fun releaseLocal(sessionId: String) = mutations.withLock {
+        write {
+            val run = dao.activeFocus()?.toRun() ?: return@write
+            if (run.session.id == sessionId) dao.clearActiveFocus()
+        }
+        updateAlarm(dao.activeFocus()?.toRun())
+    }
+
     private suspend fun transition(sessionId: String?, action: (FocusRun) -> FocusRun): FocusRun? = mutations.withLock {
         val (before, after) = write {
             val before = dao.activeFocus()?.toRun() ?: return@write null to null

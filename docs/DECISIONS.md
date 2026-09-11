@@ -77,3 +77,10 @@
 - 宽窗口 List-Detail 默认选中首个可见任务（LaunchedEffect 幂等回填），避免右侧空态；筛选后选中项失效时自动重选，用户主动选择不被覆盖。
 - Focus 宽屏侧栏显示本轮真实进度（计划/已专注/暂停累计 + 进度条）与设备说明；Device presence 数据 M7 才存在，不预做空壳。
 - 键鼠 hover/右键菜单属于 M9 polish；折叠屏/分屏由宽度驱动自动适配，真机验收待设备。
+
+## M7
+- presence 用每用户单活跃会话的内存 PresenceHub，不用 Redis：单实例语义即可满足协议测试，Redis 属多实例部署需求（DECISIONS 记录替换点）；snapshot 不持久化，重连走 REST 兜底。
+- server 主引擎从 CIO 换 Netty：本机/CI 环境 CIO server 对 WS 升级一律 400（最小复现已证），Netty 正常。
+- Observer 估算只用共享锚点 + 本地时钟：协议不传实时秒数，避免时钟偏差被误当进度；结算仍以 owner 本地 FocusSession 为准。
+- 接管（Continue on this device）：服务端原子转移后由 OWNER_CHANGED 广播驱动两端——新 owner adopt 同一 sessionId（elapsedBeforeAnchor=估算值），旧 owner releaseLocal 不结算不广播，会话最终由新 owner 按原 UUID 结算。
+- presence 客户端连接在 VM 构造时读取凭据，登录后需重启 App 生效；断线重连暂依赖页面重进，自动重连留待真机反馈后做。

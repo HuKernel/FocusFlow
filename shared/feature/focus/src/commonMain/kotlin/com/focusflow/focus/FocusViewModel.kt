@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.time.ExperimentalTime::class)
+
 package com.focusflow.focus
 
 import androidx.compose.runtime.Composable
@@ -9,31 +11,108 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewModelScope
 import com.focusflow.core.*
 import com.focusflow.database.FocusRepository
+import com.focusflow.network.FocusPresence
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 data class FocusState(
     val run: FocusRun? = null, val loaded: Boolean = false, val busy: Boolean = false,
     val elapsed: Long = 0, val remaining: Long = 0, val error: String? = null, val remindersAvailable: Boolean = false,
+    val remote: RemoteFocus? = null,
 )
 
-class FocusViewModel(private val repository: FocusRepository) : ViewModel() {
+class FocusViewModel(
+    private val repository: FocusRepository,
+    private val presence: FocusPresence? = null,
+    private val now: () -> Long = { Clock.System.now().toEpochMilliseconds() },
+) : ViewModel() {
     private val mutable = MutableStateFlow(FocusState())
     val state = mutable.asStateFlow()
+    private var reported: Pair<String, TimerState>? = null
+    private var myDeviceId: String = ""
+
     init {
+        viewModelScope.launch { myDeviceId = repository.currentDeviceId() ?: "" }
         viewModelScope.launch {
             repository.runs.catch { error ->
                 if (error is CancellationException) throw error
                 mutable.update { it.copy(error = "无法读取专注状态，请重新打开应用") }
-            }.collect { run -> show(run) }
+            }.collect { run -> show(run); report(run) }
+        }
+        presence?.let { link ->
+            link.start(viewModelScope)
+            viewModelScope.launch {
+                link.incoming.collect { message -> onPresence(message) }
+            }
         }
     }
-    private fun show(run: FocusRun?) {
-        mutable.update { it.copy(run = run, loaded = true, elapsed = run?.let(repository.engine::elapsed) ?: 0,
-            remaining = run?.let(repository.engine::remaining) ?: 0, remindersAvailable = repository.remindersAvailable) }
+
+    private suspend fun onPresence(message: PresenceMessage) {
+        val snapshot = message.snapshot ?: return
+        val myDevice = repository.currentDeviceId() ?: return
+        if (snapshot.ownerDeviceId == myDevice) {
+            if (message.kind == PresenceKind.OWNER_CHANGED && state.value.run?.session?.id != snapshot.sessionId) {
+                // Continue on this device：服务端已原子转移 owner，本机按共享锚点恢复同一会话
+                try {
+                    val focus = estimateRemoteFocus(snapshot, now(), myDevice)
+                    repository.adopt(snapshot.taskId, snapshot.taskTitle, snapshot.sessionId,
+                        snapshot.plannedDuration, snapshot.type, focus.elapsedMillis)
+                } catch (error: CancellationException) { throw error }
+                catch (_: Exception) { mutable.update { it.copy(error = "接管失败，请稍后重试") } }
+            }
+            mutable.update { it.copy(remote = null) }
+        } else {
+            if (state.value.run?.session?.id == snapshot.sessionId) repository.releaseLocal(snapshot.sessionId)
+            mutable.update { it.copy(remote = estimateRemoteFocus(snapshot, now(), myDevice)) }
+        }
     }
+
+    /** owner 状态变化时上报共享锚点；观察者据此估算剩余时间。 */
+    private suspend fun report(run: FocusRun?) {
+        val link = presence ?: return
+        if (run == null) { reported = null; return }
+        val previous = reported
+        val current = run.session.id to run.anchor.state
+        if (current == previous) return
+        reported = current
+        val kind = when {
+            previous == null && run.anchor.state == TimerState.FOCUSING -> PresenceKind.FOCUS_STARTED
+            run.anchor.state == TimerState.PAUSED -> PresenceKind.FOCUS_PAUSED
+            previous?.second == TimerState.PAUSED && run.anchor.state == TimerState.FOCUSING -> PresenceKind.FOCUS_RESUMED
+            run.session.status == SessionStatus.COMPLETED -> PresenceKind.FOCUS_COMPLETED
+            run.anchor.state == TimerState.CANCELLED -> PresenceKind.FOCUS_CANCELLED
+            else -> return // 休息与结束画面属于本地体验，不进入 presence
+        }
+        val device = repository.currentDeviceId() ?: return
+        link.send(PresenceMessage(kind, device, PresenceSnapshot(
+            sessionId = run.session.id, taskId = run.session.taskId, taskTitle = run.taskTitle, ownerDeviceId = device,
+            kind = kind, timerState = if (run.anchor.state == TimerState.PAUSED) TimerState.PAUSED else TimerState.FOCUSING,
+            anchorEpochMillis = run.anchor.epochMillis, plannedDuration = run.anchor.plannedDuration,
+            elapsedAtAnchor = repository.engine.elapsed(run), pausedDuration = run.session.pausedDuration, type = run.session.type,
+        )))
+    }
+
+    fun takeover() {
+        val snapshot = state.value.remote?.snapshot ?: return
+        val link = presence ?: return
+        change {
+            val accepted = link.takeover(snapshot.sessionId)
+            checkNotNull(accepted) { "接管失败：会话可能已结束" }
+        }
+    }
+
+    private fun show(run: FocusRun?) {
+        mutable.update {
+            it.copy(run = run, loaded = true, elapsed = run?.let(repository.engine::elapsed) ?: 0,
+                remaining = run?.let(repository.engine::remaining) ?: 0,
+                remindersAvailable = repository.remindersAvailable,
+                remote = it.remote?.let { remote -> estimateRemoteFocus(remote.snapshot, now(), myDeviceId) })
+        }
+    }
+
     suspend fun refresh(restore: Boolean = false) {
         try { show(if (restore) repository.restore() else repository.reconcile()) }
         catch (error: CancellationException) { throw error }

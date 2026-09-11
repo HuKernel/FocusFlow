@@ -1,6 +1,6 @@
 ﻿# FocusFlow 交接入口
 
-更新时间：2026-09-11。当前版本 0.8.0 / versionCode 8，M6 自适应验收完成；下一阶段 M7。真机专项测试尚未完成。
+更新时间：2026-09-11。当前版本 0.9.0 / versionCode 9，M7 Presence/Owner-Observer 完成；下一阶段 M8。真机专项测试尚未完成。
 
 ## 开始前必读
 1. AGENTS.md、FocusFlow_Product_Spec_v3.docx、FocusFlow_Prototype_v3.png。
@@ -20,11 +20,11 @@
 ```
 
 ## 已交付与验证
-- M3–M6 已交付；宽窗口 List-Detail 默认选中任务、Focus 侧栏为真实进度面板，版本 0.8.0 / versionCode 8。
-- 全量日志 E:/FocusFlowTools/m6-final.log：BUILD SUCCESSFUL in 56s；41 项测试通过：core 16、database 7、designsystem 4、tasks UI 9、sync 2、network 1、server 2。
+- M3–M7 已交付；presence/observer/handoff 见 docs/SYNC.md，版本 0.9.0 / versionCode 9。
+- 全量日志 E:/FocusFlowTools/m7-final2.log：BUILD SUCCESSFUL in 2m 27s；48 项测试通过：core 20、database 7、designsystem 4、tasks UI 9、focus 2、sync 2、network 1、server 3。
 - lint 0 errors / 17 warnings：原 15 条 + 2 条 UseKtx（SharedPreferences.edit 标准写法提示，不加 core-ktx）。
-- APK artifacts/FocusFlow-0.8.0-debug.apk，apksigner 验证通过，可覆盖旧版 Debug 安装。
-- SHA256：12FCE02989E1578C273C7F12D2290F3B081CB6E5059D16D49199BB9787EC3D86。
+- APK artifacts/FocusFlow-0.9.0-debug.apk，apksigner 验证通过，可覆盖旧版 Debug 安装。
+- SHA256：81BB604DEA752DBBF4FFCCE29C276C14802BED2782CAF02BD317B7FE19C36070。
 - adb devices 当前无设备；未声称真机音质/触感/动画流畅度或省电专项已通过。GitHub Actions 已配置，未核验远程执行结果。
 
 ## 当前实现
@@ -38,7 +38,7 @@
 ## 下一步
 1. 真机/本机联调：一台机器 `./gradlew :server:run`（DATABASE_URL 指向 PostgreSQL，缺省 H2 文件），手机填 http://<局域网IP>:8080 注册同步；双设备验证 25m+30m=55m。
 2. 真机专项：升级安装保留任务与设置；音质/触感/动效体感；倒计时 1 分钟、暂停恢复、杀进程、锁屏/旋转、通知拒权、重启与厂商省电。
-3. M7 Owner/Observer + WebSocket Presence（FOCUS_* 事件、共享锚点估算、服务端原子 owner 转移；Redis 做 presence），M8 Guard（含 Strict/Extreme 屏幕固定）。折叠屏/分屏真机验收、键鼠 hover、后台周期同步（WorkManager）按需补。
+3. M8 Guard（四档模式、Setup Wizard、降级链、OEM 指引、Emergency Exit、Screen Pinning），M9 Widget/accessibility/polish。折叠屏真机验收、键鼠 hover、后台周期同步、WS 自动重连按需补。
 4. 白噪音（Media3）、音量设置、正式音效素材、Desktop 声音未实现；outbox 不等于已联网同步。
 5. 每次可体验阶段更新版本/APK、PROGRESS/HANDOFF，构建和测试通过后 commit + push。
 

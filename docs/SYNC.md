@@ -26,5 +26,15 @@
 - tombstone 跨设备删除；重复同步幂等（pushed=0/pulled=0）；HTTP 幂等重推 accepted=0；cursor 增量拉取；回声排除。
 - 未完成：Android 登录 UI、Ktor client HTTP transport、自动同步调度、冲突 UI（Task 编辑已有 revision 防护兜底）。
 
-## 后续
-M7 Live Presence：WebSocket FOCUS_STARTED/PAUSED/RESUMED/COMPLETED/CANCELLED/OWNER_CHANGED；Observer 只读；Handoff 服务端原子转移 owner。
+## Live Presence / Owner-Observer（M7，0.9.0）
+- server PresenceHub（内存，每用户单活跃会话）：WS /api/v1/ws（query token+deviceId 认证）、GET /api/v1/focus/presence 重连兜底、POST /api/v1/focus/handoff 原子转移 owner（请求者不能已是 owner，sessionId 必须匹配）。
+- 事件：FOCUS_STARTED/PAUSED/RESUMED/COMPLETED/CANCELLED/OWNER_CHANGED；广播含共享锚点（anchorEpochMillis/planned/elapsedAtAnchor/paused），Observer 用本地时钟估算剩余，时钟偏差只影响显示不影响结算。
+- 仅 owner 可 publish；非 owner 消息静默拒绝；终态清空 presence；server 主引擎换 Netty（CIO 引擎在该环境拒绝 WS 升级，返回 400）。
+- 客户端：HttpFocusPresence（Ktor client WS，断线静默重连靠重进/重启）；FocusViewModel 上报生命周期、收到 OWNER_CHANGED 且 owner 是自己时按锚点 adopt 同一 sessionId（完成时按原 UUID 结算）；旧 owner 立即 releaseLocal（不结算、不发事件）。Observer 面板：任务名/状态/剩余/发起设备 +「在这台设备继续」。
+- ponytail: PresenceHub 单机内存态，多实例部署以 Redis pub/sub 替换 socket 分发；presence 不持久化，重启后 Observer 经 REST 拉当前快照恢复。
+
+## 已验证
+- server PresenceTest（真 Netty WS 双客户端）：owner 广播、非 owner 拒绝、handoff 双方收到 OWNER_CHANGED、终态清空。
+- core PresenceTest：锚点估算（暂停冻结、剩余不为负、owner 判定）。
+- FocusPresenceViewModelTest（真 Room + fake presence）：STARTED/PAUSED/COMPLETED 上报、Observer 状态、接管 adopt 同 sessionId、旧 owner 让位不结算。
+- 未验证：真机双设备 WS 长连接稳定性；登录后 presence 需重启 App 生效（凭据在连接时读取）。

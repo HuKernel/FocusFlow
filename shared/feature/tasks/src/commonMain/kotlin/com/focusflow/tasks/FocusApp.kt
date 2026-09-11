@@ -31,6 +31,7 @@ import com.focusflow.database.TaskRepository
 import com.focusflow.database.FocusRepository
 import com.focusflow.focus.*
 import com.focusflow.designsystem.*
+import com.focusflow.network.HttpFocusPresence
 import com.focusflow.network.toSyncMessage
 import com.focusflow.sync.SyncCoordinator
 
@@ -42,7 +43,15 @@ private enum class Destination(val label: String, val icon: ImageVector) {
 @Composable
 fun FocusRoute(repository: TaskRepository, focusRepository: FocusRepository, sync: SyncCoordinator? = null, onEnableReminders: (() -> Unit)? = null) {
     val model = viewModel { TasksViewModel(repository) }
-    val focus = viewModel { FocusViewModel(focusRepository) }
+    // 登录后重启 App 生效：presence 凭据在连接时读取，未登录时静默不连接
+    val presence = remember(sync) {
+        sync?.let { coordinator -> HttpFocusPresence(
+            serverUrl = { coordinator.presenceContext()?.first },
+            token = { coordinator.presenceContext()?.second },
+            deviceId = { coordinator.presenceContext()?.third },
+        ) }
+    }
+    val focus = viewModel { FocusViewModel(focusRepository, presence) }
     FocusApp(model, focus, sync, onEnableReminders)
 }
 
