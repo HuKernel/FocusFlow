@@ -56,5 +56,16 @@
 - 交付 APK：`artifacts/FocusFlow-0.4.0-debug.apk`，apksigner 验证通过（Debug 证书，可覆盖旧版），SHA256 395715bc2bef7cebd3c43d97e99eeea374ecbba02e55fd63e69038a6f54e62e2。
 - 真机体感（音质、震动强度、动画流畅度、Reduced Motion 开关实效）与省电专项仍未验证；动画性能目标 60fps 待 M4 统计页宏观看板时用 Macrobenchmark 类工具量化，本轮以编译/测试/UI 冒烟为验收。
 
+## M4 验收记录（2026-09-11）
+- 0.5.0 / versionCode 5：Statistics + Heatmap 落地。
+- core 新增 focusStats/rangeStartDate/heatmapWeeks：Today/Week/Month 聚合专注时长、完成次数、任务完成数、平均专注（毫秒整除）、中断次数；只统计 COMPLETED Session，日期按设备本地时区，周从周一开始。
+- designsystem 新增 Heatmap 组件（Canvas 纯绘制，12 周网格，4 档颜色 + 无数据浅底）。
+- STATS 页接真实数据：范围 FilterChip（今天/本周/本月）、6 张统计卡（复用带数字动效的 StatisticCard）、连续专注（复用 focusStreak）、12 周热力图；无完成记录时显示空态。
+- 全量验证 `E:/FocusFlowTools/m4-final.log`：BUILD SUCCESSFUL in 31s，Android assembleDebug/lintDebug、Desktop classes、32 项测试全部通过（core 16、database 7、designsystem 4、feature/tasks UI 5）。
+- 新增测试：FocusStatsTest（Today/Week/Month 聚合与 CANCELLED 排除、完成任务范围计数、热力图周一开头本周在末列）；statsPageAggregatesCompletedSessionsAndSwitchesRange（真实 Room 写入 1 次 1 分钟专注后 STATS 卡片/范围切换/热力图渲染）。fake clock 基准改为系统当前时间以对齐统计日期口径。
+- lint 0 errors / 17 warnings，与 M3 相同，无新增。
+- 交付 APK：`artifacts/FocusFlow-0.5.0-debug.apk`，apksigner 验证通过，SHA256 7276D6515A02F192047ABED3937ADBC45DC8877CD726CC8428601057B1E73890。
+- 真机渲染（热力图色阶可读性、统计切换流畅度）未实测；60fps 量化仍待性能阶段。
+
 ## 下一阶段
-M4：Statistics Overview / Heatmap（本地聚合优先），复用 M3 统计数字动效。M5 Account/Backend/Sync，M6 完整自适应验收，M7 Owner/Observer，M8 Focus Guard。
+M5：Account + Ktor 后端 + 离线同步（SyncEvent/outbox 已就绪）。M6 完整自适应验收，M7 Owner/Observer，M8 Focus Guard。

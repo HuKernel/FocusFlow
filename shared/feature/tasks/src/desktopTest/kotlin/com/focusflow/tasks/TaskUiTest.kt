@@ -25,9 +25,10 @@ class TaskUiTest {
     private val directory = Files.createTempDirectory("focusflow-ui").toFile()
     private val database = openDatabase(directory.resolve("ui.db"))
     private val model = TasksViewModel(TaskRepository(database))
+    private val clockStart = System.currentTimeMillis() // 与 state.today 同源，保证统计范围命中
     private val clock = object : FocusClock {
         var time = 0L
-        override fun epochMillis() = 1_800_000_000_000L + time
+        override fun epochMillis() = clockStart + time
         override fun monotonicMillis() = time
         override fun bootId() = "test-boot"
     }
@@ -131,5 +132,32 @@ class TaskUiTest {
         compose.waitUntil(10000) { focus.state.value.run == null && !focus.state.value.busy }
         compose.onNodeWithText("返回任务").performClick()
         compose.onNodeWithTag("task_$id").assertExists()
+    }
+
+    @Test fun statsPageAggregatesCompletedSessionsAndSwitchesRange() {
+        show()
+        compose.onNodeWithTag("add_task").performClick()
+        compose.onNodeWithTag("task_title").performTextInput("Stats")
+        compose.onNodeWithTag("save_task").performClick()
+        compose.waitUntil(10000) { model.state.value.data.tasks.size == 1 && model.state.value.editor == null }
+        val id = model.state.value.data.tasks.single().id
+        compose.onNodeWithTag("quick_focus_$id").performClick()
+        compose.onNodeWithText("正计时").performClick()
+        compose.onNodeWithTag("start_focus").performScrollTo().performClick()
+        compose.waitUntil(10000) { focus.state.value.run?.anchor?.state == TimerState.FOCUSING && !focus.state.value.busy }
+        compose.runOnIdle { clock.time += 60_000 }
+        compose.onNodeWithTag("complete_focus").performScrollTo().performClick()
+        compose.waitUntil(10000) { model.state.value.data.sessions.size == 1 && !focus.state.value.busy }
+        compose.onNodeWithTag("dismiss_focus").performScrollTo().performClick()
+        compose.waitUntil(10000) { focus.state.value.run == null && !focus.state.value.busy }
+        compose.onNodeWithText("返回任务").performClick()
+        compose.onNodeWithText("统计").performClick()
+        compose.onNodeWithText("完成专注").assertExists()
+        compose.onNodeWithText("1 次").assertExists()
+        compose.onNodeWithTag("stats_heatmap").assertExists()
+        compose.onNodeWithTag("stats_range_MONTH").performClick()
+        compose.onNodeWithText("1 次").assertExists()
+        compose.onNodeWithTag("stats_range_TODAY").performClick()
+        compose.onNodeWithTag("stats_heatmap").assertExists()
     }
 }

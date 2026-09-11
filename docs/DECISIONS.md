@@ -48,3 +48,11 @@
 - 完成音效由状态驱动（观察 anchor.state 进入 FOCUS_COMPLETED 播一次并按 sessionId 去重），倒计时自然结束与手动完成一致；开始/暂停/继续/休息由按钮触发。操作失败只显示错误文本并播 ERROR，不回滚反馈。
 - 任务列表动效用 LazyColumn animateItem + 标题颜色过渡；不做逐项 spring 缩放，避免列表滑动开销。
 - 新增 lint 警告 UseKtx x2（SharedPreferences.edit）：不为消警告引入 core-ktx 依赖，保留标准写法。
+
+## M4
+- 统计聚合是 core 纯函数（focusStats/rangeStartDate/heatmapWeeks），只读内存 List，无 IO 无新依赖；页面层 remember(sessions,tasks,range,today) 触发重算，数据量（本地会话）不需要增量索引。
+- 日期口径与 streak 一致：设备本地时区、ISO 字符串字典序比较；周从周一开始（kotlinx.datetime DayOfWeek.ordinal，0.7.1 无 isoDayNumber 公共 API）。
+- Heatmap 组件在 designsystem 只做纯绘制（List<List<Long>> 网格），不懂日期知识；周网格与颜色分档（<15/<30/<60 分钟）在 core 生成，组件可测试性与复用更好。
+- 平均专注按毫秒 Long 整除后再转分钟显示，不做小数；本月含跨月的上周数据按自然月裁剪。
+- 热力图固定最近 12 周、不可滚动（YAGNI）；Canvas + aspectRatio 自适应，无滚动交互开销。
+- UI 测试的 fake clock 基准改为 System.currentTimeMillis()：统计范围用真实系统日期（state.today），硬编码未来 epoch 会让全部范围聚合为 0。

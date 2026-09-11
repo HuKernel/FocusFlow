@@ -62,6 +62,7 @@ fun FocusApp(model: TasksViewModel, focus: FocusViewModel, onEnableReminders: ((
     var detailOpen by rememberSaveable { mutableStateOf(false) }
     var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
     var managing by rememberSaveable { mutableStateOf(false) }
+    var statsRange by rememberSaveable { mutableStateOf(StatsRange.WEEK) }
     val snackbars = remember { SnackbarHostState() }
     LaunchedEffect(state.error) {
         if (state.error != null && state.editor == null && !managing) {
@@ -156,7 +157,36 @@ fun FocusApp(model: TasksViewModel, focus: FocusViewModel, onEnableReminders: ((
                     } else item {
                         when (selected) {
                             Destination.FOCUS -> EmptyState("为下一次专注留出空间", "任务已经可以安排，计时功能将在下一阶段开放。")
-                            Destination.STATS -> EmptyState("每一段专注都值得记录", "完成专注后，这里将呈现你的时间分布。")
+                            Destination.STATS -> {
+                                val hasCompleted = state.data.sessions.any { it.status == SessionStatus.COMPLETED }
+                                if (!hasCompleted) EmptyState("每一段专注都值得记录", "完成第一次专注后，这里会呈现你的时间分布。")
+                                else {
+                                    val stats = remember(state.data.sessions, state.data.tasks, statsRange, state.today) {
+                                        focusStats(state.data.sessions, state.data.tasks, statsRange, state.today)
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                        StatsRange.entries.forEach { range ->
+                                            FilterChip(statsRange == range, { statsRange = range }, label = { Text(range.label) },
+                                                modifier = Modifier.testTag("stats_range_${range.name}"))
+                                        }
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                        StatisticCard("专注时间", "${stats.focusMillis / 60000} 分钟", Modifier.weight(1f))
+                                        StatisticCard("完成专注", "${stats.sessionCount} 次", Modifier.weight(1f))
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                        StatisticCard("完成任务", "${stats.completedTasks} 个", Modifier.weight(1f))
+                                        StatisticCard("平均专注", "${stats.avgSessionMillis / 60000} 分钟", Modifier.weight(1f))
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                        StatisticCard("中断次数", "${stats.interruptCount} 次", Modifier.weight(1f))
+                                        StatisticCard("连续专注", "${focusStreak(state.data.sessions, state.today)} 天", Modifier.weight(1f))
+                                    }
+                                    Text("最近 12 周热力图", style = MaterialTheme.typography.titleMedium)
+                                    val weeks = remember(state.data.sessions, state.today) { heatmapWeeks(state.data.sessions, state.today) }
+                                    Heatmap(weeks, Modifier.testTag("stats_heatmap"))
+                                }
+                            }
                             else -> {
                                 EmptyState("你的专注空间", "本地模式 · 数据保存在这台设备，尚未开启云同步。")
                                 OutlinedButton(onClick = { managing = true; model.clearError() }, Modifier.padding(top = FocusSpacing.medium)) { Text("管理项目和标签") }
