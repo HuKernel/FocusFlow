@@ -31,8 +31,18 @@
 - lint 0 errors / 14 warnings：13 条依赖可升级提示，1 条已有 Android 旧版备份配置提示；没有使用 baseline 隐藏。
 - APK 通过 apksigner 校验；交付路径 `artifacts/FocusFlow-0.2.0-debug.apk`。Android 真机升级/旋转尚未自动验证；本轮没有声称完整计时、同步或 Guard 可用。
 
-## M2 开发中（2026-09-11）
-- 已实现锚点计时引擎、Room v3 活动快照、事务结算和会话 outbox；core/database 测试通过（日志 E:/FocusFlowTools/m2-data.log）。
-- 已接入任务“开始专注”、正计时/倒计时、暂停/恢复、完成/取消和休息页面，以及 Android 可选结束通知。
-- 当前正在执行 Android/Desktop 构建和界面测试，尚未验收 M2；首次构建遇到 Windows classes.jar 占用，停止 Gradle daemon 后重试。
-- 本阶段实现 NORMAL；STRICT/EXTREME 屏幕固定仍按产品计划在 M8 实现。
+## M2 验收记录（2026-09-11）
+- 0.3.0 / versionCode 3：任务列表/详情可开始 NORMAL 正计时或倒计时，支持暂停/恢复、完成/取消、5 分钟休息与返回本轮入口。
+- TimerEngine 使用时间锚点；Android 同次开机 elapsedRealtime、跨开机 epoch 估算并提示；后台不每秒持久化或启动计时 FGS。
+- Room v3 active_focus + FocusRepository 事务结算；完成 Session/outbox/快照同时提交。取消不入账、暂停不累计、休息不修改 Session；失效回调不会操作新会话。
+- 进行中任务不可完成/删除；勾选任务与累计专注时长仍独立。
+- Android 可选通知、exact 能力检查/inexact fallback、开机/升级恢复。权限拒绝不阻止计时。
+- 检查点 `5ce38f2` 已推送 origin/main。
+- 全量验证 `E:/FocusFlowTools/m2-final.log`：BUILD SUCCESSFUL in 1m 3s，Android assembleDebug/lintDebug、Desktop classes、26 项测试全部通过（core 13、database 7、designsystem 2、feature/tasks UI 4）。
+- 补充 v1/v2→v3 迁移后启动专注的数据库检查，以及通知重复拒绝设置入口；`E:/FocusFlowTools/m2-release.log` 构建/lint/数据库复验通过，28s。
+- lint 0 errors / 15 warnings：原有 14 条加 exact alarm 权限提示；已有 runtime 能力检查和异常回退，详见 DECISIONS。
+- Windows classes.jar 占用通过停止 daemon 后重建解决。Android 真机通知、重启、旋转与省电恢复仍待设备实测，桌面测试不替代真机验收。
+- 交付 APK：`artifacts/FocusFlow-0.3.0-debug.apk`。
+
+## 下一阶段
+M3：Motion/Sound/Haptic 框架与状态反馈，保留 Reduced Motion。STRICT/EXTREME 屏幕固定仍在 M8；M5/M7 才实现云同步与 Owner/Observer。

@@ -165,7 +165,8 @@ fun FocusApp(model: TasksViewModel, focus: FocusViewModel, onEnableReminders: ((
                     Column(Modifier.padding(FocusSpacing.large).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
                         Text("任务详情", style = MaterialTheme.typography.titleMedium)
                         if (detail != null && taskPage) TaskDetail(detail, state, progress[detail.id] ?: 0,
-                            onEdit = { model.edit(detail) }, onDelete = { deleteId = detail.id })
+                            onEdit = { model.edit(detail) }, onDelete = { deleteId = detail.id },
+                            onStart = { requestedTask = detail.id; selected = Destination.FOCUS })
                         else Text("选择一项任务，查看计划与专注进度。", color = FocusColors.Muted)
                     }
                 }
@@ -174,7 +175,8 @@ fun FocusApp(model: TasksViewModel, focus: FocusViewModel, onEnableReminders: ((
         if (compact && detailOpen && detail != null && taskPage) AlertDialog(
             onDismissRequest = { detailOpen = false }, title = { Text("任务详情") },
             text = { Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState())) {
-                TaskDetail(detail, state, progress[detail.id] ?: 0, { model.edit(detail); detailOpen = false }, { deleteId = detail.id; detailOpen = false })
+                TaskDetail(detail, state, progress[detail.id] ?: 0, { model.edit(detail); detailOpen = false }, { deleteId = detail.id; detailOpen = false },
+                    { requestedTask = detail.id; detailOpen = false; selected = Destination.FOCUS })
             } }, confirmButton = { TextButton(onClick = { detailOpen = false }) { Text("关闭") } },
         )
     }
@@ -225,7 +227,7 @@ private fun TaskCard(task: Task, state: TasksState, millis: Long, onOpen: () -> 
 }
 
 @Composable
-private fun TaskDetail(task: Task, state: TasksState, millis: Long, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun TaskDetail(task: Task, state: TasksState, millis: Long, onEdit: () -> Unit, onDelete: () -> Unit, onStart: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
         Text(task.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(if (task.status == TaskStatus.DONE) "已完成" else "待完成", color = FocusColors.Primary)
@@ -235,7 +237,8 @@ private fun TaskDetail(task: Task, state: TasksState, millis: Long, onEdit: () -
         Text(priorityLabel(task.priority))
         Text("累计专注：${millis / 60000} / ${task.targetFocusMinutes} 分钟")
         Text("完成任务不会自动增加专注时长。", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
-        Button(onClick = onEdit, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("编辑任务") }
+        if (task.status == TaskStatus.TODO || task.status == TaskStatus.IN_PROGRESS) Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) { Text("开始专注") }
+        OutlinedButton(onClick = onEdit, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("编辑任务") }
         OutlinedButton(onClick = onDelete, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("删除任务") }
     }
 }

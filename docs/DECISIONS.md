@@ -29,3 +29,12 @@
 - 项目/标签删除采用自身 tombstone；关联移除发 DELETE 事件；项目删除时任务 projectId 清空并递增 revision，不删除任务或 Session。
 - 手机详情用对话框，宽窗口直接展示所选任务。完整折叠屏与多窗口视觉验收仍在 M6。
 - [KMP ViewModel 官方用法](https://kotlinlang.org/docs/multiplatform/compose-viewmodel.html)、[日期库用法](https://github.com/Kotlin/kotlinx-datetime)。
+
+## M2
+- 用户希望任务可以开始专注；保留产品规定的任务 checkbox，但增加列表与详情的开始入口。勾选是任务状态，完成 Session 才贡献时长，两者独立。
+- 新增 feature/focus，复用现有 ViewModel/Compose/Room 依赖。只实现 NORMAL；STRICT/EXTREME 屏幕固定按 M8 实施，不把普通计时称为锁屏。
+- active_focus 是单行运行快照；终态 Session 与 outbox 在同一 SQLite 事务落库，快照保留到用户关闭总结，以支持进程恢复后展示完成结果。
+- 同次 Android 开机使用 elapsedRealtime；跨开机和 Desktop 跨进程按 epoch 估算并显式提示。无法在没有可信外部时间源的情况下保证跨重启改时钟后的准确性。
+- Android 结束提醒使用 AlarmManager，不为 tick 启动 FGS；仅主动点击后申请通知。没有新增精确闹钟特殊权限：运行时能力允许则 exact，否则 inexact，SecurityException 再回退。
+- lint 对 exact 调用仍有 MissingPermission warning：manifest 未声明特殊权限，但调用前检查 canScheduleExactAlarms 且捕获撤权异常；保留诊断，不隐藏。未来精确提醒向导按产品需要单独设计。
+- [AlarmManager 官方约束](https://developer.android.com/develop/background-work/services/alarms)。

@@ -64,9 +64,10 @@ class TaskRepositoryTest {
         } finally { db.close(); file.parentFile.deleteRecursively() }
     }
 
-    @Test fun migratesVersionOneWithoutLosingTaskOrSession() = runBlocking {
+    @Test fun migratesOldVersionsWithoutLosingTaskOrSession() = runBlocking {
+        for (version in 1..2) {
         val file = Files.createTempDirectory("focusflow-migration").resolve("tasks.db").toFile()
-        val schema = Json.parseToJsonElement(javaClass.getResourceAsStream("/com.focusflow.database.FocusDatabase/1.json")!!.bufferedReader().readText()).jsonObject["database"]!!.jsonObject
+        val schema = Json.parseToJsonElement(javaClass.getResourceAsStream("/com.focusflow.database.FocusDatabase/$version.json")!!.bufferedReader().readText()).jsonObject["database"]!!.jsonObject
         val connection = BundledSQLiteDriver().open(file.absolutePath)
         fun sql(query: String) { connection.prepare(query).use { it.step() } }
         try {
@@ -79,7 +80,7 @@ class TaskRepositoryTest {
             for (query in schema["setupQueries"]!!.jsonArray) sql(query.jsonPrimitive.content)
             sql("INSERT INTO tasks (id,userId,title,description,status,priority,targetFocusMinutes,createdAt,updatedAt,revision) VALUES ('old','user','Old task','','TODO','NONE',25,0,0,0)")
             sql("INSERT INTO focus_sessions (id,userId,taskId,deviceId,ownerDeviceId,type,plannedDuration,actualDuration,startedAt,endedAt,pausedDuration,interruptCount,status,strictMode,createdAt,updatedAt,revision) VALUES ('session','user','old','phone','phone','COUNTDOWN',1500000,1500000,0,1500000,0,0,'COMPLETED','NORMAL',0,0,0)")
-            sql("PRAGMA user_version = 1")
+            sql("PRAGMA user_version = $version")
         } finally { connection.close() }
         val db = openDatabase(file)
         try {
@@ -87,6 +88,9 @@ class TaskRepositoryTest {
             assertEquals(1500000L, db.focusDao().completedMillis("old"))
             TaskRepository(db).saveProject("After upgrade")
             assertEquals("After upgrade", db.focusDao().observeProjects().first().single().project.name)
+            FocusRepository(db, DesktopFocusClock()).start("old", 60_000)
+            assertEquals("old", db.focusDao().activeFocus()!!.session.taskId)
         } finally { db.close(); file.parentFile.deleteRecursively() }
+        }
     }
 }

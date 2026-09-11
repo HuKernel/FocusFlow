@@ -56,7 +56,7 @@ fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.testTag("focus_minutes"))
                         }
                         Text("普通模式可随时离开或取消，不限制其他应用。", color = FocusColors.Muted)
-                        Text(if (state.remindersAvailable) "结束提醒已开启" else "结束提醒未开启，计时仍正常保存", style = MaterialTheme.typography.bodySmall)
+                        Text(if (state.remindersAvailable) "结束提醒已开启，系统省电时可能延后" else "结束提醒未开启，计时仍正常保存", style = MaterialTheme.typography.bodySmall)
                         if (!state.remindersAvailable && onEnableReminders != null) OutlinedButton(onClick = onEnableReminders) { Text("开启结束提醒") }
                         validation?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                         Button(onClick = {
@@ -70,7 +70,8 @@ fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?
                         val breaking = phase == TimerState.BREAKING
                         Text(run.taskTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                         val stopwatch = run.session.type == TimerType.STOPWATCH && !breaking
-                        TimerRing(if (stopwatch) state.elapsed else state.remaining,
+                        val display = if (!running && !breaking) run.session.actualDuration else if (stopwatch) state.elapsed / 1000 * 1000 else state.remaining
+                        TimerRing(display,
                             if (stopwatch) 1f else state.elapsed.toFloat() / run.anchor.plannedDuration.coerceAtLeast(1),
                             when (phase) { TimerState.PAUSED -> "已暂停"; TimerState.BREAKING -> "休息中"; TimerState.FOCUSING -> if (stopwatch) "已专注" else "剩余时间"; else -> "本轮已结束" })
                         if (run.recoveredWithWallClock) Text("设备重启后的时长按系统时间估算。", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
