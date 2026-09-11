@@ -9,6 +9,8 @@ import com.focusflow.database.openDatabase
 import com.focusflow.database.TaskRepository
 import com.focusflow.database.FocusRepository
 import com.focusflow.core.DesktopFocusClock
+import com.focusflow.network.HttpFocusSyncApi
+import com.focusflow.sync.SyncCoordinator
 import com.focusflow.tasks.FocusRoute
 import java.io.File
 
@@ -18,6 +20,7 @@ fun main() = application {
     Window(onCloseRequest = ::exitApplication, title = "FocusFlow", state = rememberWindowState(width = 1100.dp, height = 760.dp)) {
         val repository = remember(database) { TaskRepository(database) }
         val focus = remember(database) { FocusRepository(database, DesktopFocusClock()) }
-        FocusRoute(repository, focus)
+        val sync = remember(database) { SyncCoordinator(database, HttpFocusSyncApi()) }
+        FocusRoute(repository, focus, sync)
     }
 }

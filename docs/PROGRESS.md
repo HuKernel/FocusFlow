@@ -78,5 +78,17 @@
 - 交付 APK：`artifacts/FocusFlow-0.6.0-debug.apk`，apksigner 验证通过，SHA256 8D057E008842FA5B9D24A5A35520B78AC6BABD84964D2FD32AA382CCE4BC7823。
 - App 内行为与 0.5.0 相同：Android 登录 UI、Ktor client HTTP transport、自动同步调度未接线，不声称 App 已能云同步。
 
+## M5 第二阶段验收记录（2026-09-11）
+- 0.7.0 / versionCode 7：云同步在 App 内可用（Android 与 Desktop 同一代码路径）。
+- shared/network：FocusSyncApi 接口 + HttpFocusSyncApi（Ktor client CIO + JSON negotiation）；desktopTest 用真实 CIO server（随机端口）端到端验证注册、幂等 push、echo 排除 pull。
+- SyncTransport 接口移入 core 消解 network/sync 循环依赖；sync 新增 SyncCoordinator（登录/注册/退出/手动同步）。
+- Room v5：sync_state 增加 serverUrl/token/username（AutoMigration 4→5），迁移测试覆盖 v1/v2/v3/v4 → v5。
+- 「我的」页：服务器地址/用户名/密码表单（密码掩码）、注册/登录、已登录面板（用户名、立即同步显示推送/接收计数、退出登录）；HTTP 失败显示中文原因。Android 启动静默同步一次。
+- 全量验证 `E:/FocusFlowTools/m5b-final2.log`：BUILD SUCCESSFUL in 2m 22s（daemon 重启一次解决 classes.jar 占用），38 项测试通过：core 16、database 7、designsystem 4、tasks UI 6、sync 2、network 1、server 2。
+- 新增 UI 测试：登录表单注册流程写入 token 并切换到已登录面板（fake FocusSyncApi + 真 Room）。
+- lint 0 errors / 29 warnings：新增 3 条为 ktor-client 依赖版本提示。
+- 交付 APK：`artifacts/FocusFlow-0.7.0-debug.apk`，apksigner 验证通过，SHA256 877519B8C192A9ABFB37F8916298B18D4DFF0B48DA44AEE6F5A6F9E1E0F0533B。
+- 未验证：真机双设备通过真实 HTTP 同步（需一台机器运行 ./gradlew :server:run 并配置 DATABASE_URL）；后台周期同步未实现。
+
 ## 下一阶段
-M5 第二阶段：shared/network（Ktor client CIO transport）+ Android 登录/同步入口与 sync_state 扩展（token/serverUrl）。M6 完整自适应验收，M7 Owner/Observer + WebSocket Presence，M8 Focus Guard。
+M6：Tablet Expanded / List-Detail 完整自适应验收（rotation、split screen、foldable、键鼠）。M7 Owner/Observer + WebSocket Presence（Redis）。M8 Focus Guard。

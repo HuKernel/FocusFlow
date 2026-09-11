@@ -20,15 +20,19 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.focusflow.core.*
 import com.focusflow.database.TaskRepository
 import com.focusflow.database.FocusRepository
 import com.focusflow.focus.*
 import com.focusflow.designsystem.*
+import com.focusflow.network.toSyncMessage
+import com.focusflow.sync.SyncCoordinator
 
 private enum class Destination(val label: String, val icon: ImageVector) {
     TODAY("今天", Icons.Outlined.Today), TASKS("任务", Icons.Outlined.CheckCircle),
@@ -36,14 +40,14 @@ private enum class Destination(val label: String, val icon: ImageVector) {
 }
 
 @Composable
-fun FocusRoute(repository: TaskRepository, focusRepository: FocusRepository, onEnableReminders: (() -> Unit)? = null) {
+fun FocusRoute(repository: TaskRepository, focusRepository: FocusRepository, sync: SyncCoordinator? = null, onEnableReminders: (() -> Unit)? = null) {
     val model = viewModel { TasksViewModel(repository) }
     val focus = viewModel { FocusViewModel(focusRepository) }
-    FocusApp(model, focus, onEnableReminders)
+    FocusApp(model, focus, sync, onEnableReminders)
 }
 
 @Composable
-fun FocusApp(model: TasksViewModel, focus: FocusViewModel, onEnableReminders: (() -> Unit)? = null) = FocusTheme {
+fun FocusApp(model: TasksViewModel, focus: FocusViewModel, sync: SyncCoordinator? = null, onEnableReminders: (() -> Unit)? = null) = FocusTheme {
     val state by model.state.collectAsStateWithLifecycle()
     val focusState by focus.state.collectAsStateWithLifecycle()
     ObserveFocusWhileVisible(focus)
@@ -187,9 +191,10 @@ fun FocusApp(model: TasksViewModel, focus: FocusViewModel, onEnableReminders: ((
                                 }
                             }
                             else -> {
-                                EmptyState("你的专注空间", "本地模式 · 数据保存在这台设备，尚未开启云同步。")
+                                EmptyState("你的专注空间", "本地模式 · 任务与专注记录保存在这台设备。")
                                 OutlinedButton(onClick = { managing = true; model.clearError() }, Modifier.padding(top = FocusSpacing.medium)) { Text("管理项目和标签") }
                                 FeedbackSettings()
+                                SyncPanel(sync)
                             }
                         }
                     }
@@ -224,6 +229,48 @@ fun FocusApp(model: TasksViewModel, focus: FocusViewModel, onEnableReminders: ((
 
 fun priorityLabel(priority: Priority): String = when (priority) {
     Priority.NONE -> "无优先级"; Priority.LOW -> "低优先级"; Priority.MEDIUM -> "中优先级"; Priority.HIGH -> "高优先级"
+}
+
+@Composable
+private fun SyncPanel(sync: SyncCoordinator?) {
+    val account by (sync?.account ?: kotlinx.coroutines.flow.flowOf(null)).collectAsStateWithLifecycle(null)
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    fun run(block: suspend () -> String) {
+        scope.launch {
+            busy = true
+            message = try { block() } catch (error: Exception) { error.toSyncMessage() }
+            busy = false
+        }
+    }
+    Column(Modifier.padding(top = FocusSpacing.large), verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+        Text("云同步", style = MaterialTheme.typography.titleMedium)
+        if (sync == null) Text("此构建未接入云同步。", color = FocusColors.Muted)
+        else if (account?.token == null) {
+            var serverUrl by rememberSaveable { mutableStateOf("") }
+            var username by rememberSaveable { mutableStateOf("") }
+            var password by rememberSaveable { mutableStateOf("") }
+            OutlinedTextField(serverUrl, { serverUrl = it }, Modifier.fillMaxWidth().testTag("sync_server"), label = { Text("服务器地址，如 http://10.0.2.2:8080") }, singleLine = true)
+            OutlinedTextField(username, { username = it }, Modifier.fillMaxWidth().testTag("sync_username"), label = { Text("用户名（3–64 字符）") }, singleLine = true)
+            OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth().testTag("sync_password"), label = { Text("密码（至少 8 位）") }, singleLine = true,
+                visualTransformation = PasswordVisualTransformation())
+            Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                Button({ run { sync.login(serverUrl, username, password); "登录成功" } }, enabled = !busy, modifier = Modifier.testTag("sync_login")) { Text("登录") }
+                OutlinedButton({ run { sync.register(serverUrl, username, password); "注册成功" } }, enabled = !busy, modifier = Modifier.testTag("sync_register")) { Text("注册") }
+            }
+        } else {
+            Text("已登录：${account?.username}")
+            Text("服务器：${account?.serverUrl}", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                Button({ run { val summary = sync.syncOnce() ?: error("未登录"); "已同步：推送 ${summary.pushed} 项，接收 ${summary.pulled} 项" } },
+                    enabled = !busy, modifier = Modifier.testTag("sync_now")) { Text("立即同步") }
+                OutlinedButton({ run { sync.logout(); "已退出登录" } }, enabled = !busy) { Text("退出登录") }
+            }
+            Text("数据仍以本机为准；联网同步失败不影响本地使用。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+        }
+        message?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("sync_message")) }
+    }
 }
 
 @Composable

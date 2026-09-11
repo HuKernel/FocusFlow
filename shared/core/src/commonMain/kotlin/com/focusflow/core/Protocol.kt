@@ -11,3 +11,9 @@ import kotlinx.serialization.Serializable
     val entityType: String, val entityId: String, val revision: Long, val payload: String, val deleted: Boolean,
 )
 @Serializable data class PullResponse(val changes: List<ServerChange>, val nextCursor: Long, val serverTime: Long)
+
+/** 同步传输抽象：shared/network 提供 HTTP 实现，测试直接复用 server 模块的 Store。 */
+interface SyncTransport {
+    suspend fun push(events: List<SyncEvent>): Int
+    suspend fun pull(cursor: Long, deviceId: String): PullResponse
+}

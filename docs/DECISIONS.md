@@ -65,3 +65,9 @@
 - 密码 PBKDF2WithHmacSHA256（JDK 内置，无新依赖）；token 为 HMAC 签名的无状态凭证，SERVER_SECRET 环境变量注入，默认值仅限本地开发。
 - 客户端 SyncEngine 不感知 HTTP：SyncTransport 接口由后续网络层实现；echo 排除 + 本地 revision 检查双保险防回环。
 - Room v4 只加 sync_state 表；Android 登录 UI 与自动同步未实现，不声称 App 已能云同步（outbox ≠ 已联网）。
+
+## M5（第二阶段）
+- SyncTransport 接口上移 core：network 与 sync 互相需要对方类型，core 是双方共同祖先，接口随协议模型放置消解循环依赖。
+- 账号凭据（serverUrl/token/username）存 Room v5 sync_state 而非 SharedPreferences：与 cursor 同处一行、跨平台一致、迁移可测；token 只存本地不上传。
+- HTTP 客户端用 Ktor CIO 单引擎（Android/Desktop 同一 commonMain 实现），不做 OkHttp/engine 分平台；错误信息在 network 层集中映射为中文。
+- 启动自动同步只做一次静默尝试（LaunchedEffect + runCatching），周期后台同步等真实用户反馈后按需加 WorkManager，YAGNI。

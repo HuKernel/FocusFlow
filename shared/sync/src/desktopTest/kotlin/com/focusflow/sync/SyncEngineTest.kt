@@ -3,6 +3,7 @@ package com.focusflow.sync
 import com.focusflow.core.FocusAlarm
 import com.focusflow.core.FocusClock
 import com.focusflow.core.PullResponse
+import com.focusflow.core.SyncTransport
 import com.focusflow.core.SyncEvent
 import com.focusflow.core.TaskDraft
 import com.focusflow.core.TimerType

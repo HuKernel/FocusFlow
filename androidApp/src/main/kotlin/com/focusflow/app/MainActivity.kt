@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import com.focusflow.designsystem.LocalFocusFeedback
 import com.focusflow.tasks.FocusRoute
@@ -20,8 +21,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val app = application as FocusFlowApplication
             val feedback = remember { app.feedback }
+            LaunchedEffect(Unit) { runCatching { app.sync.syncOnce() } }
             CompositionLocalProvider(LocalFocusFeedback provides feedback) {
-                FocusRoute(app.tasks, app.focus, onEnableReminders = {
+                FocusRoute(app.tasks, app.focus, app.sync, onEnableReminders = {
                     val preferences = getPreferences(MODE_PRIVATE)
                     if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED &&
                         (!preferences.getBoolean("notification_requested", false) || shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS))) {

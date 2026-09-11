@@ -6,12 +6,6 @@ import com.focusflow.core.*
 import com.focusflow.database.*
 import kotlinx.serialization.json.Json
 
-/** 同步传输抽象：HTTP 实现（Ktor client）在接入网络层时提供；测试使用 server 模块的真实 Store。 */
-interface SyncTransport {
-    suspend fun push(events: List<SyncEvent>): Int
-    suspend fun pull(cursor: Long, deviceId: String): PullResponse
-}
-
 class SyncEngine(private val database: FocusDatabase, private val transport: SyncTransport) {
     private val dao = database.focusDao()
     private val json = Json { ignoreUnknownKeys = true }

@@ -12,6 +12,7 @@ kotlin {
         commonMain.dependencies {
             api(project(":shared:database"))
             api(project(":shared:feature:focus"))
+            api(project(":shared:sync"))
             implementation(project(":shared:designsystem"))
             implementation(compose.runtime)
             implementation(compose.foundation)

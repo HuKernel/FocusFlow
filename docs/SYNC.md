@@ -1,7 +1,7 @@
 # 同步
 
-## 状态（M5 第一阶段，0.6.0）
-服务端（Ktor + JDBC）与客户端 SyncEngine 已实现并通过测试；Android 登录/网络传输接线尚未完成，App 内还不能触发同步。
+## 状态（M5 完成，0.7.0）
+服务端、HTTP 传输、账号与 App 内登录/同步入口全部接线；真机双设备 HTTP 验收待设备可用后补充。
 
 ## 协议（client 与 server 共用 core/Protocol.kt）
 - POST /api/v1/auth/register、/login → {userId, token}（PBKDF2 密码散列，HMAC-SHA256 token，30 天）

@@ -38,7 +38,10 @@ data class TaskTagEntity(@Embedded val link: TaskTag)
 data class LocalIdentity(@PrimaryKey val singleton: Int = 0, val userId: String, val deviceId: String)
 
 @Entity(tableName = "sync_state")
-data class SyncStateEntity(@PrimaryKey val singleton: Int = 0, val cursor: Long = 0)
+data class SyncStateEntity(
+    @PrimaryKey val singleton: Int = 0, val cursor: Long = 0,
+    val serverUrl: String? = null, val token: String? = null, val username: String? = null,
+)
 
 @Entity(tableName = "active_focus")
 data class ActiveFocusEntity(
@@ -81,6 +84,7 @@ interface FocusDao {
     @Query("SELECT * FROM sync_events WHERE state != 'SYNCED' ORDER BY clientTimestamp, id") suspend fun pendingEvents(): List<SyncEventEntity>
     @Upsert suspend fun saveEvent(event: SyncEventEntity)
     @Query("SELECT * FROM sync_state WHERE singleton = 0") suspend fun syncState(): SyncStateEntity?
+    @Query("SELECT * FROM sync_state WHERE singleton = 0") fun observeSyncState(): Flow<SyncStateEntity?>
     @Upsert suspend fun saveSyncState(state: SyncStateEntity)
     @Query("SELECT * FROM active_focus WHERE singleton = 0") suspend fun activeFocus(): ActiveFocusEntity?
     @Query("SELECT * FROM active_focus WHERE singleton = 0") fun observeActiveFocus(): Flow<ActiveFocusEntity?>
@@ -111,8 +115,8 @@ interface FocusDao {
     entities = [TaskEntity::class, SessionEntity::class, SyncEventEntity::class, TimerAnchorEntity::class,
         ProjectEntity::class, TagEntity::class, TaskTagEntity::class, LocalIdentity::class, ActiveFocusEntity::class,
         SyncStateEntity::class],
-    version = 4,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)],
+    version = 5,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5)],
 )
 @ConstructedBy(FocusDatabaseConstructor::class)
 abstract class FocusDatabase : RoomDatabase() {

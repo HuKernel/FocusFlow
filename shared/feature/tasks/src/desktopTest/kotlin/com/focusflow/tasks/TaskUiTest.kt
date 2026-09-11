@@ -18,6 +18,7 @@ import com.focusflow.core.TimerState
 import com.focusflow.focus.FocusViewModel
 import com.focusflow.database.*
 import java.nio.file.Files
+import kotlinx.coroutines.runBlocking
 import org.junit.*
 
 class TaskUiTest {
@@ -44,10 +45,10 @@ class TaskUiTest {
         directory.deleteRecursively()
     }
 
-    private fun show(width: Int = 390) {
+    private fun show(width: Int = 390, sync: com.focusflow.sync.SyncCoordinator? = null) {
         compose.setContent {
             CompositionLocalProvider(LocalLifecycleOwner provides owner) {
-                Box(Modifier.requiredSize(width.dp, 760.dp)) { FocusApp(model, focus) }
+                Box(Modifier.requiredSize(width.dp, 760.dp)) { FocusApp(model, focus, sync) }
             }
         }
         compose.waitUntil(10000) { model.state.value.loaded }
@@ -159,5 +160,24 @@ class TaskUiTest {
         compose.onNodeWithText("1 次").assertExists()
         compose.onNodeWithTag("stats_range_TODAY").performClick()
         compose.onNodeWithTag("stats_heatmap").assertExists()
+    }
+
+    @Test fun syncPanelRegistersAndShowsSignedInState() {
+        val fake = object : com.focusflow.network.FocusSyncApi {
+            override suspend fun register(serverUrl: String, username: String, password: String) =
+                com.focusflow.core.AuthResponse("user-1", "fake-token")
+            override suspend fun login(serverUrl: String, username: String, password: String) =
+                com.focusflow.core.AuthResponse("user-1", "fake-token")
+            override fun transport(serverUrl: String, token: String) = throw UnsupportedOperationException()
+        }
+        show(sync = com.focusflow.sync.SyncCoordinator(database, fake))
+        compose.onNodeWithText("我的").performClick()
+        compose.onNodeWithTag("sync_server").performScrollTo().performTextInput("http://10.0.2.2:8080")
+        compose.onNodeWithTag("sync_username").performScrollTo().performTextInput("alice")
+        compose.onNodeWithTag("sync_password").performScrollTo().performTextInput("password123")
+        compose.onNodeWithTag("sync_register").performScrollTo().performClick()
+        compose.waitUntil(10000) { runBlocking { database.focusDao().syncState()?.token == "fake-token" } }
+        compose.onNodeWithText("已登录：alice").assertExists()
+        compose.onNodeWithTag("sync_now").assertExists()
     }
 }
