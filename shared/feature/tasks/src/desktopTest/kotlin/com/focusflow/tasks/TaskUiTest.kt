@@ -45,10 +45,14 @@ class TaskUiTest {
         directory.deleteRecursively()
     }
 
-    private fun show(width: Int = 390, height: Int = 760, sync: com.focusflow.sync.SyncCoordinator? = null) {
+    private fun show(
+        width: Int = 390, height: Int = 760, sync: com.focusflow.sync.SyncCoordinator? = null,
+        guardCapabilities: (() -> com.focusflow.core.GuardCapabilities?)? = null,
+        onOpenGuardSetup: (() -> Unit)? = null,
+    ) {
         compose.setContent {
             CompositionLocalProvider(LocalLifecycleOwner provides owner) {
-                Box(Modifier.requiredSize(width.dp, height.dp)) { FocusApp(model, focus, sync) }
+                Box(Modifier.requiredSize(width.dp, height.dp)) { FocusApp(model, focus, sync, guardCapabilities = guardCapabilities, onOpenGuardSetup = onOpenGuardSetup) }
             }
         }
         compose.waitUntil(10000) { model.state.value.loaded }
@@ -204,5 +208,25 @@ class TaskUiTest {
         compose.onNodeWithTag("navigation_rail").assertExists()
         compose.onNodeWithTag("supporting_pane").assertExists()
         compose.onNodeWithText("FocusFlow").assertExists()
+    }
+
+    @Test fun guardModeSelectionShowsEffectiveModeAndDegradesWithoutPermissions() {
+        val full = com.focusflow.core.GuardCapabilities(accessibilityGranted = true, usageAccessGranted = true, screenPinningAvailable = true)
+        show(guardCapabilities = { full })
+        compose.onNodeWithTag("add_task").performClick()
+        compose.onNodeWithTag("task_title").performTextInput("Guard")
+        compose.onNodeWithTag("save_task").performClick()
+        compose.waitUntil(10000) { model.state.value.data.tasks.size == 1 && model.state.value.editor == null }
+        val id = model.state.value.data.tasks.single().id
+        compose.onNodeWithTag("quick_focus_$id").performClick()
+        compose.onNodeWithTag("guard_mode_STRICT").performScrollTo().performClick()
+        compose.onNodeWithText("严格模式：离开白名单应用会收到回到专注的提醒。").assertExists()
+        // 无权限时提示降级与入口
+        show(guardCapabilities = { com.focusflow.core.GuardCapabilities() }, onOpenGuardSetup = { })
+        compose.onNodeWithText("统计").performClick()
+        compose.onNodeWithText("专注").performClick()
+        compose.onNodeWithTag("guard_mode_EXTREME").performScrollTo().performClick()
+        compose.onNodeWithText("当前权限下按普通模式计时：可随时离开，不限制其他应用。").assertExists()
+        compose.onNodeWithText("去开启专注防护").performScrollTo().assertExists()
     }
 }

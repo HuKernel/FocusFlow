@@ -14,4 +14,5 @@ class FocusFlowApplication : Application() {
     val focus by lazy { FocusRepository(database, AndroidFocusClock(this), AndroidFocusAlarm(this)) }
     val feedback by lazy { androidFeedback(this) }
     val sync by lazy { SyncCoordinator(database, HttpFocusSyncApi()) }
+    val guardCapabilities: com.focusflow.core.GuardCapabilities get() = GuardPrefs.capabilities(this)
 }

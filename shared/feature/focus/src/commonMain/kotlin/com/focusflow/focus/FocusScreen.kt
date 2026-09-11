@@ -34,7 +34,11 @@ import com.focusflow.core.*
 import com.focusflow.designsystem.*
 
 @Composable
-fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?, onBack: () -> Unit, onEnableReminders: (() -> Unit)?) {
+fun FocusScreen(
+    model: FocusViewModel, tasks: List<Task>, requestedTask: String?, onBack: () -> Unit, onEnableReminders: (() -> Unit)?,
+    guardCapabilities: (() -> GuardCapabilities?)? = null, onOpenGuardSetup: (() -> Unit)? = null,
+    onGuardModeApplied: ((FocusMode) -> Unit)? = null, onGuardFocusEnded: (() -> Unit)? = null,
+) {
     val state by model.state.collectAsStateWithLifecycle()
     val feedback = LocalFocusFeedback.current
     val prefs by feedback.prefs.collectAsState()
@@ -43,6 +47,7 @@ fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?
     var minutes by rememberSaveable { mutableStateOf("25") }
     var validation by rememberSaveable { mutableStateOf<String?>(null) }
     var cancelling by rememberSaveable { mutableStateOf(false) }
+    var selectedMode by rememberSaveable { mutableStateOf(FocusMode.NORMAL) }
     val run = state.run
     LaunchedEffect(state.error) { if (state.error != null) feedback.play(SoundEvent.ERROR) }
     var announcedCompletion by remember { mutableStateOf<String?>(null) }
@@ -90,7 +95,26 @@ fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?
                                     OutlinedTextField(minutes, { minutes = it }, label = { Text("专注分钟（1–1440）") },
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.testTag("focus_minutes"))
                                 }
-                                Text("普通模式可随时离开或取消，不限制其他应用。", color = FocusColors.Muted)
+                                val capabilities = guardCapabilities?.invoke()
+                                if (capabilities == null) Text("普通模式可随时离开或取消，不限制其他应用。", color = FocusColors.Muted)
+                                else {
+                                    val strength = guardStrength(selectedMode, capabilities)
+                                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                        listOf(FocusMode.NORMAL to "普通", FocusMode.SOFT to "软性", FocusMode.STRICT to "严格", FocusMode.EXTREME to "极致").forEach { (choice, label) ->
+                                            FilterChip(selectedMode == choice, { selectedMode = choice }, label = { Text(label) }, modifier = Modifier.testTag("guard_mode_${choice.name}"))
+                                        }
+                                    }
+                                    Text(when (strength.effective) {
+                                        FocusMode.NORMAL -> "当前权限下按普通模式计时：可随时离开，不限制其他应用。"
+                                        FocusMode.SOFT -> "软性模式：允许切换应用，专注结束后可查看中断记录（需使用情况访问）。"
+                                        FocusMode.STRICT -> "严格模式：离开白名单应用会收到回到专注的提醒。"
+                                        FocusMode.EXTREME -> "极致模式：使用系统屏幕固定，长按返回键可退出（Emergency Exit）。"
+                                    }, color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                    if (strength.missingSteps.isNotEmpty()) {
+                                        Text("缺少：${strength.missingSteps.joinToString("、")}。开启后按 ${strength.effective.name} 模式运行。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                        if (onOpenGuardSetup != null) TextButton(onClick = onOpenGuardSetup) { Text("去开启专注防护") }
+                                    }
+                                }
                                 Text(if (state.remindersAvailable) "结束提醒已开启，系统省电时可能延后" else "结束提醒未开启，计时仍正常保存", style = MaterialTheme.typography.bodySmall)
                                 if (!state.remindersAvailable && onEnableReminders != null) OutlinedButton(onClick = onEnableReminders) { Text("开启结束提醒") }
                                 validation?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -101,7 +125,9 @@ fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?
                                         validation = null
                                         selectedTask?.let {
                                             feedback.play(SoundEvent.FOCUS_START); feedback.perform(HapticEvent.START_FOCUS)
-                                            model.start(it, if (type == TimerType.STOPWATCH) 0 else duration!! * 60000, type)
+                                            val effective = guardCapabilities?.invoke()?.let { effectiveMode(selectedMode, it) } ?: FocusMode.NORMAL
+                                            if (effective != FocusMode.NORMAL) onGuardModeApplied?.invoke(effective)
+                                            model.start(it, if (type == TimerType.STOPWATCH) 0 else duration!! * 60000, type, effective)
                                         }
                                     }
                                 }, enabled = !state.busy && choices.any { it.id == selectedTask }, modifier = Modifier.testTag("start_focus")) { Text("开始专注") }
@@ -145,7 +171,7 @@ fun FocusScreen(model: FocusViewModel, tasks: List<Task>, requestedTask: String?
                                         Text(if (phase == TimerState.CANCELLED) "已取消，本轮不计入专注进度" else "专注已完成，记录 ${timerText(run.session.actualDuration)}",
                                             color = FocusColors.Primary, modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale })
                                         if (celebrated) Button(onClick = { feedback.play(SoundEvent.BREAK_START); model.startBreak(run.session.id) }, enabled = !state.busy) { Text("休息 5 分钟") }
-                                        OutlinedButton(onClick = { model.dismiss(run.session.id) }, enabled = !state.busy, modifier = Modifier.testTag("dismiss_focus")) { Text("结束本轮") }
+                                        OutlinedButton(onClick = { onGuardFocusEnded?.invoke(); model.dismiss(run.session.id) }, enabled = !state.busy, modifier = Modifier.testTag("dismiss_focus")) { Text("结束本轮") }
                                     }
                                 }
                             }

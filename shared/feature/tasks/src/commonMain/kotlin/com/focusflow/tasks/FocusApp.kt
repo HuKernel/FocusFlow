@@ -41,7 +41,11 @@ private enum class Destination(val label: String, val icon: ImageVector) {
 }
 
 @Composable
-fun FocusRoute(repository: TaskRepository, focusRepository: FocusRepository, sync: SyncCoordinator? = null, onEnableReminders: (() -> Unit)? = null) {
+fun FocusRoute(
+    repository: TaskRepository, focusRepository: FocusRepository, sync: SyncCoordinator? = null, onEnableReminders: (() -> Unit)? = null,
+    guardCapabilities: (() -> GuardCapabilities?)? = null, onOpenGuardSetup: (() -> Unit)? = null,
+    onGuardModeApplied: ((FocusMode) -> Unit)? = null, onGuardFocusEnded: (() -> Unit)? = null,
+) {
     val model = viewModel { TasksViewModel(repository) }
     // 登录后重启 App 生效：presence 凭据在连接时读取，未登录时静默不连接
     val presence = remember(sync) {
@@ -52,18 +56,23 @@ fun FocusRoute(repository: TaskRepository, focusRepository: FocusRepository, syn
         ) }
     }
     val focus = viewModel { FocusViewModel(focusRepository, presence) }
-    FocusApp(model, focus, sync, onEnableReminders)
+    FocusApp(model, focus, sync, onEnableReminders, guardCapabilities, onOpenGuardSetup, onGuardModeApplied, onGuardFocusEnded)
 }
 
 @Composable
-fun FocusApp(model: TasksViewModel, focus: FocusViewModel, sync: SyncCoordinator? = null, onEnableReminders: (() -> Unit)? = null) = FocusTheme {
+fun FocusApp(
+    model: TasksViewModel, focus: FocusViewModel, sync: SyncCoordinator? = null, onEnableReminders: (() -> Unit)? = null,
+    guardCapabilities: (() -> GuardCapabilities?)? = null, onOpenGuardSetup: (() -> Unit)? = null,
+    onGuardModeApplied: ((FocusMode) -> Unit)? = null, onGuardFocusEnded: (() -> Unit)? = null,
+) = FocusTheme {
     val state by model.state.collectAsStateWithLifecycle()
     val focusState by focus.state.collectAsStateWithLifecycle()
     ObserveFocusWhileVisible(focus)
     var selected by rememberSaveable { mutableStateOf(Destination.TODAY) }
     var requestedTask by rememberSaveable { mutableStateOf<String?>(null) }
     if (selected == Destination.FOCUS) {
-        FocusScreen(focus, state.data.tasks, requestedTask, { selected = Destination.TODAY }, onEnableReminders)
+        FocusScreen(focus, state.data.tasks, requestedTask, { selected = Destination.TODAY }, onEnableReminders,
+            guardCapabilities, onOpenGuardSetup, onGuardModeApplied, onGuardFocusEnded)
         return@FocusTheme
     }
     var filter by rememberSaveable { mutableStateOf(TaskFilter.ALL) }

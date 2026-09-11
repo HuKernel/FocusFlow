@@ -84,3 +84,12 @@
 - Observer 估算只用共享锚点 + 本地时钟：协议不传实时秒数，避免时钟偏差被误当进度；结算仍以 owner 本地 FocusSession 为准。
 - 接管（Continue on this device）：服务端原子转移后由 OWNER_CHANGED 广播驱动两端——新 owner adopt 同一 sessionId（elapsedBeforeAnchor=估算值），旧 owner releaseLocal 不结算不广播，会话最终由新 owner 按原 UUID 结算。
 - presence 客户端连接在 VM 构造时读取凭据，登录后需重启 App 生效；断线重连暂依赖页面重进，自动重连留待真机反馈后做。
+
+## M8
+- 降级决策是 core 纯函数（effectiveMode/guardStrength/isGuardAllowed），androidApp 只做能力检测与 UI；无障碍/Usage/固定能力检测都在平台层，可测逻辑在 common。
+- Guard 状态（模式、同意时间、白名单、guard_active）存本机 SharedPreferences，不进 Room/outbox：隐私条款要求白名单不上传，且守护状态无同步语义。
+- 无障碍服务只订阅窗口状态变化、只读包名（不申请内容读取）；isAccessibilityTool=false + 显著披露 + 主动同意，符合 Play 政策的非无障碍工具路径。
+- EXTREME 用 Activity.startLockTask（普通消费级屏幕固定，系统确认弹窗 + 长按返回退出），不声称 Device Owner 级不可退出锁定；结束时主动 stopLockTask。
+- 白名单 = 本应用 + Launcher（运行时解析）+ 用户手动添加包名；不做安装列表枚举（避免 QUERY_ALL_PACKAGES），DECISIONS 记录未来如需应用选择器再单独设计。
+- tasks feature 的 compose 依赖从 implementation 改 api：androidApp 的 Guard 向导需要同一 JB compose 版本的 foundation/material3，避免引入第二套 androidx 坐标。
+- 构建环境：Windows 下强杀 daemon 会遗留缓存锁导致后续构建假死，清理 *.lock + --no-parallel 恢复；Netty 依赖经代理缓慢下载属网络现象非工程问题。

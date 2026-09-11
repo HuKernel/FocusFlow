@@ -128,7 +128,7 @@ class FocusViewModel(
             finally { mutable.update { it.copy(busy = false) } }
         }
     }
-    fun start(taskId: String, duration: Long, type: TimerType) = change { repository.start(taskId, duration, type) }
+    fun start(taskId: String, duration: Long, type: TimerType, mode: FocusMode = FocusMode.NORMAL) = change { repository.start(taskId, duration, type, mode) }
     fun pause(id: String) = change { repository.pause(id) }
     fun resume(id: String) = change { repository.resume(id) }
     fun cancel(id: String) = change { repository.cancel(id) }

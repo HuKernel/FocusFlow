@@ -110,5 +110,17 @@
 - 交付 APK：`artifacts/FocusFlow-0.9.0-debug.apk`，apksigner 验证通过，SHA256 81BB604DEA752DBBF4FFCCE29C276C14802BED2782CAF02BD317B7FE19C36070。
 - 未验证：真机双设备 WS 稳定性与后台重连；登录后 presence 生效需重启 App。
 
+## M8 验收记录（2026-09-12）
+- 0.10.0 / versionCode 10：Focus Guard 四档模式与合规框架。
+- core：effectiveMode（EXTREME→STRICT→SOFT→NORMAL 降级）、guardStrength（自检缺失项）、isGuardAllowed（本应用/Launcher/白名单）纯函数 + 单测。
+- focus 开始页：模式 chips（普通/软性/严格/极致）、实际生效模式说明、缺权限降级提示与「去开启专注防护」入口；start 携带 effective mode 写入 FocusSession.strictMode。
+- androidApp：GuardPrefs（能力检测：无障碍服务启用、Usage Access AppOps API 26-29 兼容、屏幕固定恒可用）；FocusGuardService 无障碍服务（仅窗口包名、guard_active 时提醒、通知含 Emergency Exit action）；GuardSetupScreen 向导（披露同意→权限跳转→白名单管理→自检→OEM 指引）；MainActivity 装配 STRICT 开守护 / EXTREME startLockTask、结束本轮释放。
+- manifest：+VIBRATE 已有、+INTERNET（同步网络）、+无障碍 service 声明（BIND_ACCESSIBILITY_SERVICE，isAccessibilityTool=false）。
+- 文档：FOCUS_GUARD/ANDROID_PERMISSIONS/OEM_RELIABILITY 按 M8 实况重写。
+- 全量验证 `E:/FocusFlowTools/m8-final2.log`：BUILD SUCCESSFUL（--no-parallel），52 项测试通过（core 23、database 7、designsystem 4、tasks UI 10、focus 2、sync 2、network 1、server 3）。
+- lint 0 errors / 38 warnings：新增为 KTX SharedPreferences 提示 x5、queries 声明建议、isAccessibilityTool API 31 范围提示、依赖版本提示；均为提示类，不隐藏。
+- 交付 APK：`artifacts/FocusFlow-0.10.0-debug.apk`，apksigner 验证通过，SHA256 75228BE6C476391F9AD3C6AF05A343A00D6FFFA6171E6DA6E599B3CDA2A18BA9。
+- 未验证（无真机）：无障碍服务实际回调、厂商 ROM 守护行为、屏幕固定交互、SOFT 中断记录（UsageStats 聚合路径未接，文档已注明）。
+
 ## 下一阶段
-M8：Focus Guard（四档模式、Setup Wizard、权限降级链、OEM 指引、Emergency Exit、Screen Pinning 路径）。M9：Widget + accessibility + polish。
+M9：Widget（Glance）+ accessibility 完整性 + performance/polish + 1.0.0。
