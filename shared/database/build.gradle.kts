@@ -16,6 +16,7 @@ kotlin {
             api(libs.coroutines)
         }
         commonTest.dependencies { implementation(kotlin("test")) }
+        val desktopTest by getting { resources.srcDir("schemas") }
     }
 }
 android { namespace = "com.focusflow.database"; compileSdk = 36; defaultConfig { minSdk = 26 } }

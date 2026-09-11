@@ -8,7 +8,10 @@ kotlin {
     jvm("desktop")
     jvmToolchain(17)
     sourceSets {
-        commonMain.dependencies { api(libs.serialization) }
+        commonMain.dependencies {
+            api(libs.serialization)
+            api(libs.datetime)
+        }
         commonTest.dependencies { implementation(kotlin("test")) }
     }
 }

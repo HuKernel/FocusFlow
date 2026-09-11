@@ -18,3 +18,14 @@
 - [Compose Multiplatform 兼容性](https://kotlinlang.org/docs/multiplatform/compose-compatibility-and-versioning.html)
 - [Room 发布记录](https://developer.android.com/jetpack/androidx/releases/room)
 - [Room KMP 平台构造器](https://developer.android.com/kotlin/multiplatform/room)
+
+## M1
+- 新增一个任务 feature 模块承载导航业务/Today/Tasks/组织管理；designsystem 只保留主题和无业务组件，不为 Today 额外创建空模块。
+- 使用稳定版 kotlinx-datetime 0.7.1 做本地日历日期验证与时区换算，KMP ViewModel/Lifecycle 2.9.5 管理跨平台状态。当前 Kotlin 的 Clock/Instant/UUID 标准库 API 需要 opt-in，封装在数据/日期逻辑文件，不在页面散落 Android API。
+- 任务新建默认计划今天，可选择明天或未安排；Today 仅显示 plannedDate 等于本地今天的任务，未安排项在全部任务中。
+- 本地身份首次业务写入时生成 UUID 并永久保存在 local_identity，记录 deviceId 到 outbox；M5 登录时再设计本地数据归属迁移，不伪造已登录状态。
+- 所有 Repository 写入使用 Room useWriterConnection/IMMEDIATE transaction。Task 与关系、项目、标签的 SyncEvent 一起提交；任务编辑/删除检查当前 revision。
+- 数据库 v1→v2 只新增表，选择 Room 自动生成迁移；测试从已提交的 v1 schema 创建真实旧库并检查 Task/Session 保留，不使用 destructive migration。
+- 项目/标签删除采用自身 tombstone；关联移除发 DELETE 事件；项目删除时任务 projectId 清空并递增 revision，不删除任务或 Session。
+- 手机详情用对话框，宽窗口直接展示所选任务。完整折叠屏与多窗口视觉验收仍在 M6。
+- [KMP ViewModel 官方用法](https://kotlinlang.org/docs/multiplatform/compose-viewmodel.html)、[日期库用法](https://github.com/Kotlin/kotlinx-datetime)。

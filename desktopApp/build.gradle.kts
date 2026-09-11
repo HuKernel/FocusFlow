@@ -5,7 +5,7 @@ plugins {
 }
 kotlin { jvmToolchain(17) }
 dependencies {
-    implementation(project(":shared:designsystem"))
+    implementation(project(":shared:feature:tasks"))
     implementation(project(":shared:database"))
     implementation(compose.desktop.currentOs)
 }

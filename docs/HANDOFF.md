@@ -1,6 +1,6 @@
 # FocusFlow 交接入口
 
-更新时间：2026-09-11。当前阶段：M0 工程基线构建/测试已通过，下一阶段 M1。
+更新时间：2026-09-11。当前阶段：M1 开发中，M0 工程基线构建/测试已通过。
 
 ## 开始前必读
 1. `AGENTS.md`：架构、里程碑和不可妥协约束。
@@ -50,6 +50,11 @@ Wrapper 发行包已缓存到 E 盘，可正常运行。`local.properties` 本�
 - 先前 build.log/build-verify.log 有失败记录，应以最后 build-final.log 为准。
 
 ## 下一步
+当前 M1 工作已实现代码，先检查 `E:/FocusFlowTools/m1-build.log`、修复剩余测试/编译问题，勿按下方旧 M0 待办重新实现。
+M1 代码入口：`shared/feature/tasks`（页面/ViewModel）、`shared/database/.../TaskRepository.kt`（事务业务写入）。
+本轮需完成验收、更新 APK、commit + push 后再交付。当前 APK 路径在构建成功前可能仍是旧版。
+
+M0 结束时的待办（供对照）：
 1. M1 实现 Task/Today/Project/Tag 和 ViewModel，将业务页面移出 designsystem 到 feature 模块。
 2. 当前页面为真实空状态导航壳；任务统计之外没有 CRUD 功能，也没有伪造样例数据。
 3. 任务改动必须 Room 与 SyncEvent 同一事务，Task 没有 progress 字段。

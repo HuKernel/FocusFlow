@@ -19,3 +19,12 @@
 ## 下一阶段
 M1：任务创建/编辑/完成/软删除、Today 真实筛选、Project/Tag、ViewModel；保持 Room 与 outbox 事务一致。
 M2：可靠计时引擎与完整恢复测试。当前 Timer 只有接口/状态/锚点，不能开始计时。
+
+## M1 开发中（2026-09-11）
+- 新增 shared/feature/tasks，业务页面从 designsystem 移出。
+- 已实现任务表单、完成/重开、软删除、搜索、日期/项目/标签/优先级筛选与详情。
+- 新增项目/标签的创建、重命名、删除；删除组织结构保留任务并清理关联。
+- 数据库 v2 增加 projects/tags/task_tags/local_identity；使用 Room AutoMigration 1→2，保留 v1 schema。
+- TaskRepository 所有业务写入与 SyncEvent 在一个 IMMEDIATE 事务中完成；编辑检查 revision 防止旧快照覆盖新值。
+- Android 数据库提升到 Application 生命周期，避免旋转时关闭 ViewModel 正在使用的数据库。
+- 版本更新为 0.2.0 / versionCode 2。完整构建/UI/迁移验收仍在执行，尚未交付新版 APK。
