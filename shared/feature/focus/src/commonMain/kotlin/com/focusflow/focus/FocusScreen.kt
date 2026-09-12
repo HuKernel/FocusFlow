@@ -44,7 +44,10 @@ fun FocusScreen(
     val prefs by feedback.prefs.collectAsState()
     var selectedTask by rememberSaveable(requestedTask) { mutableStateOf(requestedTask) }
     var type by rememberSaveable { mutableStateOf(TimerType.COUNTDOWN) }
-    var minutes by rememberSaveable { mutableStateOf("25") }
+    // 从任务的「开始专注」进入时，预填该任务的目标专注时长；直接打开专注页时用默认 25 分钟
+    var minutes by rememberSaveable(requestedTask) {
+        mutableStateOf(requestedTask?.let { id -> tasks.firstOrNull { it.id == id }?.targetFocusMinutes }?.takeIf { it > 0 }?.toString() ?: "25")
+    }
     var validation by rememberSaveable { mutableStateOf<String?>(null) }
     var cancelling by rememberSaveable { mutableStateOf(false) }
     var selectedMode by rememberSaveable { mutableStateOf(FocusMode.NORMAL) }
