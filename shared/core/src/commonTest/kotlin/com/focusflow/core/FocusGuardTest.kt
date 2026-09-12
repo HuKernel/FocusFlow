@@ -17,8 +17,11 @@ class FocusGuardTest {
         assertEquals(FocusMode.STRICT, effectiveMode(FocusMode.STRICT, full))
         assertEquals(FocusMode.STRICT, effectiveMode(FocusMode.EXTREME, full.copy(screenPinningAvailable = false)))
         assertEquals(FocusMode.EXTREME, effectiveMode(FocusMode.EXTREME, full))
-        // 极致缺固定且缺无障碍：一路降到底
-        assertEquals(FocusMode.NORMAL, effectiveMode(FocusMode.EXTREME, GuardCapabilities()))
+        // 极致只依赖屏幕固定：无障碍/Usage 缺失不影响极致（防切换由固定承担）
+        assertEquals(FocusMode.EXTREME, effectiveMode(FocusMode.EXTREME, GuardCapabilities(screenPinningAvailable = true)))
+        assertEquals(FocusMode.EXTREME, effectiveMode(FocusMode.EXTREME, GuardCapabilities(usageAccessGranted = true, screenPinningAvailable = true)))
+        // 屏幕固定不可用才降严格
+        assertEquals(FocusMode.STRICT, effectiveMode(FocusMode.EXTREME, GuardCapabilities()))
     }
 
     @Test fun whitelistAllowsOwnLauncherAndUserAppsOnly() {
@@ -31,10 +34,9 @@ class FocusGuardTest {
     }
 
     @Test fun strengthReportsMissingSteps() {
-        val strength = guardStrength(FocusMode.EXTREME, GuardCapabilities(usageAccessGranted = true))
+        val strength = guardStrength(FocusMode.STRICT, GuardCapabilities(usageAccessGranted = true))
         assertEquals(FocusMode.SOFT, strength.effective)
         assertTrue("无障碍服务（Strict 守护）" in strength.missingSteps)
-        assertTrue("屏幕固定（极致模式）" in strength.missingSteps)
         assertTrue(guardStrength(FocusMode.EXTREME, full).missingSteps.isEmpty())
     }
 }

@@ -7,8 +7,8 @@
 - NORMAL：普通计时，无任何守护依赖。
 - SOFT：允许切走；中断记录依赖 Usage Access，缺权限时按 NORMAL 运行。
 - STRICT：AccessibilityService（专注守护）检测非白名单应用并弹「回到专注」通知；缺权限时降 SOFT/NORMAL。
-- EXTREME：Activity.startLockTask 屏幕固定（普通消费级路径，用户在系统弹窗确认，长按返回可退出）；不可用时降 STRICT。
-- 降级链 EXTREME→STRICT→SOFT→NORMAL 由 core `effectiveMode` 纯函数决定，UI 显示实际生效模式与缺失项。
+- EXTREME：Activity.startLockTask 屏幕固定（普通消费级路径，用户在系统弹窗确认，长按返回可退出）；仅当屏幕固定不可用时降 STRICT，不要求无障碍（防切换由固定承担）。运行中不提供暂停；取消有预算（最近 24 小时最多 2 次，超出后只能等计时结束或长按返回退出）。
+- 降级链由 core `effectiveMode` 纯函数决定：EXTREME 只看屏幕固定；STRICT 缺无障碍降 SOFT；SOFT 缺 Usage Access 降 NORMAL。UI 显示实际生效模式与缺失项。
 
 ## 专注守护服务（FocusGuardService）
 - 只订阅 TYPE_WINDOW_STATE_CHANGED，只读包名；不申请 canRetrieveWindowContent，不读页面内容。

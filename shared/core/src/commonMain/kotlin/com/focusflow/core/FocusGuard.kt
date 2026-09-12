@@ -8,15 +8,14 @@ data class GuardCapabilities(
 )
 
 /**
- * 权限不足时按 EXTREME→STRICT→SOFT→NORMAL 逐级降级：
- * EXTREME 需要屏幕固定；STRICT 需要无障碍服务；SOFT 需要使用情况访问（用于记录中断）。
+ * 权限不足时降级：EXTREME 只依赖屏幕固定（防切换由固定承担，不要求无障碍）；
+ * STRICT 依赖无障碍服务；SOFT 依赖使用情况访问（记录中断）。
  */
-fun effectiveMode(requested: FocusMode, capabilities: GuardCapabilities): FocusMode {
-    var mode = requested
-    if (mode == FocusMode.EXTREME && !capabilities.screenPinningAvailable) mode = FocusMode.STRICT
-    if (mode == FocusMode.STRICT && !capabilities.accessibilityGranted) mode = FocusMode.SOFT
-    if (mode == FocusMode.SOFT && !capabilities.usageAccessGranted) mode = FocusMode.NORMAL
-    return mode
+fun effectiveMode(requested: FocusMode, capabilities: GuardCapabilities): FocusMode = when (requested) {
+    FocusMode.EXTREME -> if (capabilities.screenPinningAvailable) FocusMode.EXTREME else FocusMode.STRICT
+    FocusMode.STRICT -> if (capabilities.accessibilityGranted) FocusMode.STRICT else if (capabilities.usageAccessGranted) FocusMode.SOFT else FocusMode.NORMAL
+    FocusMode.SOFT -> if (capabilities.usageAccessGranted) FocusMode.SOFT else FocusMode.NORMAL
+    FocusMode.NORMAL -> FocusMode.NORMAL
 }
 
 /** 白名单判定：自身包、启动器与用户添加的应用不打扰。 */
@@ -32,9 +31,9 @@ data class GuardStrength(val requested: FocusMode, val effective: FocusMode, val
 fun guardStrength(requested: FocusMode, capabilities: GuardCapabilities): GuardStrength {
     val effective = effectiveMode(requested, capabilities)
     val missing = buildList {
-        if (requested >= FocusMode.SOFT && !capabilities.usageAccessGranted) add("使用情况访问（记录中断）")
-        if (requested >= FocusMode.STRICT && !capabilities.accessibilityGranted) add("无障碍服务（Strict 守护）")
         if (requested == FocusMode.EXTREME && !capabilities.screenPinningAvailable) add("屏幕固定（极致模式）")
+        if (requested == FocusMode.STRICT && !capabilities.accessibilityGranted) add("无障碍服务（Strict 守护）")
+        if (requested == FocusMode.SOFT && !capabilities.usageAccessGranted) add("使用情况访问（记录中断）")
     }
     return GuardStrength(requested, effective, missing)
 }

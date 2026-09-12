@@ -138,6 +138,8 @@ fun FocusScreen(
                                 val phase = run.anchor.state
                                 val running = phase == TimerState.FOCUSING || phase == TimerState.PAUSED
                                 val breaking = phase == TimerState.BREAKING
+                                val extreme = run.session.strictMode == FocusMode.EXTREME
+                                val cancelBudgetLeft = !extreme || state.extremeCancels < FocusViewModel.EXTREME_CANCEL_BUDGET
                                 Text(run.taskTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                                 val stopwatch = run.session.type == TimerType.STOPWATCH && !breaking
                                 val display = if (!running && !breaking) run.session.actualDuration else if (stopwatch) state.elapsed / 1000 * 1000 else state.remaining
@@ -147,7 +149,9 @@ fun FocusScreen(
                                 if (run.recoveredWithWallClock) Text("设备重启后的时长按系统时间估算。", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
                                 when {
                                     running -> {
-                                        Button(onClick = {
+                                        if (extreme) {
+                                            Text("极致模式不提供暂停；如需临时离开请长按返回键退出屏幕固定（计入中断）。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                        } else Button(onClick = {
                                             if (phase == TimerState.PAUSED) { feedback.play(SoundEvent.FOCUS_RESUME); model.resume(run.session.id) }
                                             else { feedback.play(SoundEvent.FOCUS_PAUSE); model.pause(run.session.id) }
                                             feedback.perform(HapticEvent.TAP)
@@ -161,7 +165,8 @@ fun FocusScreen(
                                         }
                                         if (stopwatch) Button(onClick = { model.complete(run.session.id) },
                                             enabled = !state.busy, modifier = Modifier.testTag("complete_focus")) { Text("完成专注") }
-                                        OutlinedButton(onClick = { cancelling = true }, enabled = !state.busy) { Text("取消本次专注") }
+                                        OutlinedButton(onClick = { cancelling = true }, enabled = !state.busy && cancelBudgetLeft) { Text("取消本次专注") }
+                                        if (extreme && !cancelBudgetLeft) Text("最近 24 小时的极致取消次数已用完（${state.extremeCancels}/${FocusViewModel.EXTREME_CANCEL_BUDGET}），请等待计时结束或长按返回键退出。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
                                     }
                                     breaking -> {
                                         Text("专注已记录，休息时间不会计入任务进度。")
@@ -205,7 +210,9 @@ fun FocusScreen(
         }
     }
     if (cancelling && run != null) AlertDialog(onDismissRequest = { cancelling = false }, title = { Text("取消本次专注？") },
-        text = { Text("已用时间会保存为取消记录，但不会增加任务的专注进度。") },
+        text = { Text(if (run.session.strictMode == FocusMode.EXTREME)
+            "极致模式下的取消会消耗取消次数（最近 24 小时内剩余 ${if (state.extremeCancels < FocusViewModel.EXTREME_CANCEL_BUDGET) FocusViewModel.EXTREME_CANCEL_BUDGET - state.extremeCancels - 1 else 0} 次）。已用时间保存为取消记录，不计入专注进度。"
+        else "已用时间会保存为取消记录，但不会增加任务的专注进度。") },
         confirmButton = { TextButton(onClick = { feedback.perform(HapticEvent.WARNING); model.cancel(run.session.id); cancelling = false }, enabled = !state.busy) { Text("确认取消") } },
         dismissButton = { TextButton(onClick = { cancelling = false }) { Text("继续专注") } })
 }

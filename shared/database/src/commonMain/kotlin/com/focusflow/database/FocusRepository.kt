@@ -52,6 +52,9 @@ class FocusRepository(
         updateAlarm(run)
     }
 
+    /** 极致模式取消预算：返回时间窗口内已取消的极致专注次数。 */
+    suspend fun extremeCancelsSince(since: Long): Int = dao.extremeCancelsSince(since)
+
     suspend fun currentDeviceId(): String? {
         dao.identity()?.let { return it.deviceId }
         // 并发首调可能撞唯一键：插入失败时回读既有身份

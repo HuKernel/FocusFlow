@@ -98,6 +98,8 @@ interface FocusDao {
 
     @Query("SELECT COALESCE(SUM(actualDuration), 0) FROM focus_sessions WHERE taskId = :taskId AND status = 'COMPLETED'")
     suspend fun completedMillis(taskId: String): Long
+    @Query("SELECT COUNT(*) FROM focus_sessions WHERE status = 'CANCELLED' AND strictMode = 'EXTREME' AND endedAt >= :since")
+    suspend fun extremeCancelsSince(since: Long): Int
 
     @Insert suspend fun insertEvent(event: SyncEventEntity)
     @Upsert suspend fun saveAnchor(anchor: TimerAnchorEntity)
