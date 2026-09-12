@@ -5,7 +5,8 @@
 - RECEIVE_BOOT_COMPLETED：开机恢复闹钟。
 - VIBRATE：触感反馈。
 - BIND_ACCESSIBILITY_SERVICE（service 级）：专注守护，用户在系统设置手动授予；不声明 Usage Access/精确闹钟特殊权限/Overlay。
-- INTERNET 不需要显式声明（targetSdk 自动）？——targetSdk 36 下网络权限仍需声明：androidApp 使用 Ktor CIO 同步，需要 INTERNET。
+- INTERNET：Ktor CIO 同步/Presence 网络。
+- PACKAGE_USAGE_STATS（签名级特殊权限）：必须声明才会出现在系统「使用情况访问」列表，用户才能为 SOFT 模式授予；仅 Guard 向导引导，不自动授予。
 
 ## 申请时机与降级
 - 首次启动不弹任何权限；Task/Normal Focus 零依赖。
