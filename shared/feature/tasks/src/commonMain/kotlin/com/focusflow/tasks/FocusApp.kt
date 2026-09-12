@@ -180,10 +180,9 @@ fun FocusApp(
                                 onComplete = { model.complete(task, it) },
                                 onStart = { requestedTask = task.id; selected = Destination.FOCUS })
                         }
-                    } else item {
-                        when (selected) {
-                            Destination.STATS -> {
-                                val hasCompleted = state.data.sessions.any { it.status == SessionStatus.COMPLETED }
+                    } else when (selected) {
+                        Destination.STATS -> item {
+                            val hasCompleted = state.data.sessions.any { it.status == SessionStatus.COMPLETED }
                                 if (!hasCompleted) EmptyState("每一段专注都值得记录", "完成第一次专注后，这里会呈现你的时间分布。")
                                 else {
                                     val stats = remember(state.data.sessions, state.data.tasks, statsRange, state.today) {
@@ -210,14 +209,38 @@ fun FocusApp(
                                     Text("最近 12 周热力图", style = MaterialTheme.typography.titleMedium)
                                     val weeks = remember(state.data.sessions, state.today) { heatmapWeeks(state.data.sessions, state.today) }
                                     Heatmap(weeks, Modifier.testTag("stats_heatmap"))
+                            }
+                        }
+                        else -> {
+                                item { Text("任务与专注记录保存在这台设备。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall) }
+                                item { SettingsSection("账号与同步") { SyncPanel(sync) } }
+                                item {
+                                    SettingsSection("专注防护") {
+                                        val capabilities = guardCapabilities?.invoke()
+                                        if (capabilities == null) Text("此构建不支持专注防护。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                        else {
+                                            val strength = guardStrength(FocusMode.STRICT, capabilities)
+                                            Text(
+                                                if (capabilities.accessibilityGranted) "严格守护已就绪；白名单与权限可在此调整。"
+                                                else if (strength.missingSteps.isEmpty()) "严格守护已就绪。"
+                                                else "严格守护未开启（缺少${strength.missingSteps.joinToString("、")}），专注时会按更低模式运行。",
+                                                color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                            if (onOpenGuardSetup != null) OutlinedButton(onClick = onOpenGuardSetup, Modifier.testTag("open_guard_setup")) { Text("专注防护设置") }
+                                        }
+                                    }
                                 }
-                            }
-                            else -> {
-                                EmptyState("你的专注空间", "本地模式 · 任务与专注记录保存在这台设备。")
-                                OutlinedButton(onClick = { managing = true; model.clearError() }, Modifier.padding(top = FocusSpacing.medium)) { Text("管理项目和标签") }
-                                FeedbackSettings()
-                                SyncPanel(sync)
-                            }
+                                if (onEnableReminders != null) item {
+                                    SettingsSection("提醒") {
+                                        Text("专注结束的系统提醒是可选项，关闭不影响计时与记录。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                        OutlinedButton(onClick = onEnableReminders) { Text("通知设置") }
+                                    }
+                                }
+                                item { SettingsSection("反馈") { FeedbackSettings() } }
+                                item {
+                                    SettingsSection("任务组织") {
+                                        OutlinedButton(onClick = { managing = true; model.clearError() }) { Text("管理项目和标签") }
+                                    }
+                                }
                         }
                     }
                 }
@@ -254,6 +277,16 @@ fun priorityLabel(priority: Priority): String = when (priority) {
 }
 
 @Composable
+private fun SettingsSection(title: String, content: @Composable () -> Unit) {
+    Card(Modifier.fillMaxWidth(), shape = FocusShapes.card, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(Modifier.fillMaxWidth().padding(FocusSpacing.large), verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            content()
+        }
+    }
+}
+
+@Composable
 private fun SyncPanel(sync: SyncCoordinator?) {
     val account by (sync?.account ?: kotlinx.coroutines.flow.flowOf(null)).collectAsStateWithLifecycle(null)
     var busy by remember { mutableStateOf(false) }
@@ -266,8 +299,7 @@ private fun SyncPanel(sync: SyncCoordinator?) {
             busy = false
         }
     }
-    Column(Modifier.padding(top = FocusSpacing.large), verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-        Text("云同步", style = MaterialTheme.typography.titleMedium)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
         if (sync == null) Text("此构建未接入云同步。", color = FocusColors.Muted)
         else if (account?.token == null) {
             var serverUrl by rememberSaveable { mutableStateOf("") }
@@ -299,8 +331,7 @@ private fun SyncPanel(sync: SyncCoordinator?) {
 private fun FeedbackSettings() {
     val feedback = LocalFocusFeedback.current
     val prefs by feedback.prefs.collectAsState()
-    Column(Modifier.padding(top = FocusSpacing.large), verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-        Text("反馈", style = MaterialTheme.typography.titleMedium)
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
         SettingSwitch("音效", prefs.sound, "task_setting_sound") { value -> feedback.setPrefs(prefs.copy(sound = value)); feedback.perform(HapticEvent.TAP) }
         SettingSwitch("震动反馈", prefs.haptic, "task_setting_haptic") { value -> feedback.setPrefs(prefs.copy(haptic = value)); if (value) feedback.perform(HapticEvent.TAP) }
         SettingSwitch("减弱动效", prefs.reducedMotion, "task_setting_reduced") { value -> feedback.setPrefs(prefs.copy(reducedMotion = value)) }

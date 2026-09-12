@@ -49,10 +49,13 @@ class TaskUiTest {
         width: Int = 390, height: Int = 760, sync: com.focusflow.sync.SyncCoordinator? = null,
         guardCapabilities: (() -> com.focusflow.core.GuardCapabilities?)? = null,
         onOpenGuardSetup: (() -> Unit)? = null,
+        onEnableReminders: (() -> Unit)? = null,
     ) {
         compose.setContent {
             CompositionLocalProvider(LocalLifecycleOwner provides owner) {
-                Box(Modifier.requiredSize(width.dp, height.dp)) { FocusApp(model, focus, sync, guardCapabilities = guardCapabilities, onOpenGuardSetup = onOpenGuardSetup) }
+                Box(Modifier.requiredSize(width.dp, height.dp)) {
+                    FocusApp(model, focus, sync, onEnableReminders, guardCapabilities, onOpenGuardSetup)
+                }
             }
         }
         compose.waitUntil(10000) { model.state.value.loaded }
@@ -231,5 +234,18 @@ class TaskUiTest {
         compose.onNodeWithTag("guard_mode_STRICT").performScrollTo().performClick()
         compose.onNodeWithText("当前权限下按普通模式计时：可随时离开，不限制其他应用。").assertExists()
         compose.onNodeWithText("去开启专注防护").performScrollTo().assertExists()
+    }
+
+    @Test fun settingsPageShowsSectionsWithGuardEntry() {
+        show(guardCapabilities = { com.focusflow.core.GuardCapabilities(screenPinningAvailable = true) }, onOpenGuardSetup = { }, onEnableReminders = { })
+        compose.onNodeWithText("我的").performClick()
+        compose.onNodeWithText("账号与同步").assertExists()
+        compose.onNodeWithText("专注防护").assertExists()
+        compose.onNodeWithText("专注防护设置").assertExists()
+        compose.onNodeWithText("反馈").assertExists()
+        compose.onNodeWithTag("task_list").performScrollToNode(hasText("任务组织"))
+        compose.onNodeWithText("任务组织").assertExists()
+        compose.onNodeWithTag("task_list").performScrollToNode(hasText("通知设置"))
+        compose.onNodeWithText("通知设置").assertExists()
     }
 }
