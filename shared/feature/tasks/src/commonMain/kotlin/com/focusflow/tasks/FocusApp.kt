@@ -64,7 +64,9 @@ fun FocusApp(
     model: TasksViewModel, focus: FocusViewModel, sync: SyncCoordinator? = null, onEnableReminders: (() -> Unit)? = null,
     guardCapabilities: (() -> GuardCapabilities?)? = null, onOpenGuardSetup: (() -> Unit)? = null,
     onGuardModeApplied: ((FocusMode) -> Unit)? = null, onGuardFocusEnded: (() -> Unit)? = null,
-) = FocusTheme {
+) {
+    val feedbackPrefs by LocalFocusFeedback.current.prefs.collectAsState()
+    FocusTheme(mode = feedbackPrefs.themeMode) {
     val state by model.state.collectAsStateWithLifecycle()
     val focusState by focus.state.collectAsStateWithLifecycle()
     ObserveFocusWhileVisible(focus)
@@ -206,6 +208,27 @@ fun FocusApp(
                                         StatisticCard("中断次数", "${stats.interruptCount} 次", Modifier.weight(1f))
                                         StatisticCard("连续专注", "${focusStreak(state.data.sessions, state.today)} 天", Modifier.weight(1f))
                                     }
+                                    val byProject = remember(state.data.sessions, state.data.tasks, statsRange, state.today) {
+                                        val start = rangeStartDate(statsRange, state.today)
+                                        state.data.sessions
+                                            .filter { it.status == SessionStatus.COMPLETED && it.endedAt != null && localDateAt(it.endedAt!!) >= start }
+                                            .mapNotNull { session -> state.data.tasks.find { it.id == session.taskId }?.projectId?.let { it to session.actualDuration } }
+                                            .groupBy({ it.first }, { it.second }).mapValues { (_, minutes) -> minutes.sum() }
+                                            .entries.sortedByDescending { it.value }
+                                    }
+                                    if (byProject.isNotEmpty()) {
+                                        Text("项目分布", style = MaterialTheme.typography.titleMedium)
+                                        val maxMinutes = byProject.maxOf { it.value } / 60000
+                                        byProject.forEach { (projectId, millis) ->
+                                            val name = state.data.projects.find { it.id == projectId }?.name ?: "未分组"
+                                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                                Text(name, Modifier.width(88.dp), style = MaterialTheme.typography.bodySmall)
+                                                LinearProgressIndicator(progress = { if (maxMinutes > 0) (millis / 60000f / maxMinutes).coerceIn(0f, 1f) else 0f },
+                                                    Modifier.weight(1f))
+                                                Text("${millis / 60000} 分钟", Modifier.padding(start = FocusSpacing.small), style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
+                                            }
+                                        }
+                                    }
                                     Text("最近 12 周热力图", style = MaterialTheme.typography.titleMedium)
                                     val weeks = remember(state.data.sessions, state.today) { heatmapWeeks(state.data.sessions, state.today) }
                                     Heatmap(weeks, Modifier.testTag("stats_heatmap"))
@@ -270,6 +293,7 @@ fun FocusApp(
         confirmButton = { TextButton(onClick = { model.delete(deleting); deleteId = null }, enabled = !state.busy) { Text("确认删除") } },
         dismissButton = { TextButton(onClick = { deleteId = null }) { Text("取消") } })
     if (managing) OrganizationDialog(state, model, onDismiss = { managing = false; model.clearError() })
+    }
 }
 
 fun priorityLabel(priority: Priority): String = when (priority) {
@@ -331,11 +355,24 @@ private fun SyncPanel(sync: SyncCoordinator?) {
 private fun FeedbackSettings() {
     val feedback = LocalFocusFeedback.current
     val prefs by feedback.prefs.collectAsState()
+    val noise = LocalWhiteNoise.current
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+            listOf(ThemeMode.SYSTEM to "跟随系统", ThemeMode.LIGHT to "浅色", ThemeMode.DARK to "深色").forEach { (mode, label) ->
+                FilterChip(prefs.themeMode == mode, { feedback.setPrefs(prefs.copy(themeMode = mode)) }, label = { Text(label) })
+            }
+        }
         SettingSwitch("音效", prefs.sound, "task_setting_sound") { value -> feedback.setPrefs(prefs.copy(sound = value)); feedback.perform(HapticEvent.TAP) }
         SettingSwitch("震动反馈", prefs.haptic, "task_setting_haptic") { value -> feedback.setPrefs(prefs.copy(haptic = value)); if (value) feedback.perform(HapticEvent.TAP) }
         SettingSwitch("减弱动效", prefs.reducedMotion, "task_setting_reduced") { value -> feedback.setPrefs(prefs.copy(reducedMotion = value)) }
         Text("减弱动效会减少位移和缩放动画，保留颜色与淡入淡出。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+        if (noise != null) {
+            Text("白噪音音量（与音效独立）", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+            Slider(value = prefs.noiseVolume, onValueChange = { value ->
+                feedback.setPrefs(prefs.copy(noiseVolume = value))
+                noise.setVolume(value)
+            }, modifier = Modifier.testTag("noise_volume"))
+        }
     }
 }
 

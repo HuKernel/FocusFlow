@@ -15,6 +15,7 @@ h2 = "2.3.232"
 postgresql = "42.7.2"
 logback = "1.5.18"
 glance = "1.1.1"
+media3 = "1.8.0"
 
 [libraries]
 coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -44,6 +45,8 @@ h2 = { module = "com.h2database:h2", version.ref = "h2" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
+media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
+media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

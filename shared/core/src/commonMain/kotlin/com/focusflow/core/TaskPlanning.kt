@@ -14,6 +14,7 @@ data class TaskDraft(
     val title: String,
     val description: String = "",
     val plannedDate: String? = null,
+    val plannedStartTime: String? = null,
     val priority: Priority = Priority.NONE,
     val targetFocusMinutes: Int = 25,
     val projectId: String? = null,
@@ -24,6 +25,7 @@ data class TaskDraft(
         require(description.length <= 10000) { "备注不能超过 10000 个字符" }
         require(targetFocusMinutes in 0..10080) { "目标时长需要在 0–10080 分钟之间" }
         require(plannedDate == null || isValidDate(plannedDate)) { "日期格式应为 YYYY-MM-DD，且必须是真实日期" }
+        require(plannedStartTime == null || plannedStartTime.matches(Regex("^([01]\\d|2[0-3]):[0-5]\\d$"))) { "开始时间格式应为 HH:mm（00:00–23:59）" }
     }
 }
 

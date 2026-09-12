@@ -4,6 +4,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- 签名级特殊权限：不声明则系统「使用情况访问」列表不显示本应用，用户无法授予 SOFT 模式所需能力 -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
     <application android:name=".FocusFlowApplication" android:label="FocusFlow" android:icon="@drawable/ic_launcher" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:supportsRtl="true">
@@ -20,6 +22,11 @@
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
             <meta-data android:name="android.accessibilityservice" android:resource="@xml/focus_guard_service" />
+        </service>
+        <service android:name=".WhiteNoiseService" android:exported="false" android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
         </service>
         <receiver android:name=".TodayFocusWidget" android:exported="false" android:label="今日专注">
             <intent-filter>

@@ -1,6 +1,6 @@
 ﻿# FocusFlow 交接入口
 
-更新时间：2026-09-12。当前版本 1.0.0 / versionCode 11，M0–M9 全部里程碑完成；进入真机验收与 Beta 打磨阶段。
+更新时间：2026-09-12。当前版本 1.1.0 / versionCode 15，M0–M9 完成并补齐文档差距（白噪音/主题/年统计/项目分布/开始时间）；进入真机验收与 Beta 打磨。
 
 ## 开始前必读
 1. AGENTS.md、FocusFlow_Product_Spec_v3.docx、FocusFlow_Prototype_v3.png。
@@ -23,8 +23,8 @@
 - M0–M9 全部交付（任务/计时/反馈/统计/同步/自适应/Presence/Guard/Widget）；Guard 见 docs/FOCUS_GUARD.md，同步见 docs/SYNC.md。
 - 全量日志 E:/FocusFlowTools/m9-final.log：BUILD SUCCESSFUL in 2m 23s；52 项测试通过：core 23、database 7、designsystem 4、tasks UI 10、focus 2、sync 2、network 1、server 3。
 - lint 0 errors / 17 warnings：原 15 条 + 2 条 UseKtx（SharedPreferences.edit 标准写法提示，不加 core-ktx）。
-- APK artifacts/FocusFlow-1.0.0-debug.apk，apksigner 验证通过，可覆盖旧版 Debug 安装。
-- SHA256：240A2A2D358A3A07ACE09F5784E79351E60ED29560FBE16ED41D5758DBC2747E。
+- APK artifacts/FocusFlow-1.1.0-debug.apk，apksigner 验证通过，可覆盖旧版 Debug 安装。
+- SHA256：EA30DDE958C8409F750597B7C2D50B0C2B99C9794A374282C0CA6600CF67E494。
 - adb devices 当前无设备；未声称真机音质/触感/动画流畅度或省电专项已通过。GitHub Actions 已配置，未核验远程执行结果。
 
 ## 当前实现

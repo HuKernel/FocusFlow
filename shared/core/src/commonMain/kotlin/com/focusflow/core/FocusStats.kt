@@ -5,7 +5,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 
-enum class StatsRange(val label: String) { TODAY("今天"), WEEK("本周"), MONTH("本月") }
+enum class StatsRange(val label: String) { TODAY("今天"), WEEK("本周"), MONTH("本月"), YEAR("今年") }
 
 data class FocusStats(
     val focusMillis: Long, val sessionCount: Int, val interruptCount: Int,
@@ -18,6 +18,7 @@ fun rangeStartDate(range: StatsRange, today: String): String {
         StatsRange.TODAY -> today
         StatsRange.WEEK -> date.minus((date.dayOfWeek.ordinal).toLong(), DateTimeUnit.DAY).toString()
         StatsRange.MONTH -> LocalDate(date.year, date.monthNumber, 1).toString()
+        StatsRange.YEAR -> LocalDate(date.year, 1, 1).toString()
     }
 }
 

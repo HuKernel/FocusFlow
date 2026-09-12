@@ -5,7 +5,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-data class FeedbackPrefs(val sound: Boolean = true, val haptic: Boolean = true, val reducedMotion: Boolean = false)
+data class FeedbackPrefs(
+    val sound: Boolean = true, val haptic: Boolean = true, val reducedMotion: Boolean = false,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM, val noiseVolume: Float = 0.6f,
+)
 
 class FocusFeedback(
     initial: FeedbackPrefs = FeedbackPrefs(),
@@ -22,3 +25,5 @@ class FocusFeedback(
 }
 
 val LocalFocusFeedback = staticCompositionLocalOf { FocusFeedback.Off }
+
+val LocalWhiteNoise = staticCompositionLocalOf<WhiteNoiseController?> { null }

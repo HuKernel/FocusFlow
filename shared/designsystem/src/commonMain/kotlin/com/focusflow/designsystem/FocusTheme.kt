@@ -32,10 +32,31 @@ enum class HapticEvent { TAP, SELECTION, START_FOCUS, SUCCESS, WARNING, HANDOFF 
 fun interface SoundController { fun play(event: SoundEvent) }
 fun interface HapticController { fun perform(event: HapticEvent) }
 
+enum class WhiteNoiseKind { RAIN, WIND, SILENCE }
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+/** 白噪音与音效音量独立；实现负责后台播放与音频焦点。 */
+interface WhiteNoiseController {
+    val playing: Boolean
+    fun start(kind: WhiteNoiseKind)
+    fun stop()
+    fun setVolume(volume: Float)
+}
+
 @Composable
-fun FocusTheme(content: @Composable () -> Unit) {
+fun FocusTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -> Unit) {
+    val dark = when (mode) {
+        ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
     MaterialTheme(
-        colorScheme = lightColorScheme(
+        colorScheme = if (dark) darkColorScheme(
+            primary = FocusColors.Primary, background = Color(0xFF141826),
+            surface = Color(0xFF1C2133), onSurface = Color(0xFFE7EAF6),
+            onBackground = Color(0xFFE7EAF6), secondary = FocusColors.Success,
+            surfaceVariant = Color(0xFF272D45),
+        ) else lightColorScheme(
             primary = FocusColors.Primary, background = FocusColors.Background,
             surface = Color.White, onSurface = FocusColors.Ink,
             onBackground = FocusColors.Ink, secondary = FocusColors.Success,

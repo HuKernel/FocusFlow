@@ -99,3 +99,10 @@
 - widget 数据走 Application 直查 Room COMPLETED sessions 按本地日期聚合，与 Stats 同口径；不引入新的数据通道。
 - accessibility 现状：关键交互均有文本或 contentDescription（checkbox、FAB、导航 label、统计卡文本化）；TalkBack/键盘导航的系统性审计留待真机（桌面测试无法覆盖读屏）。
 - 1.0.0 定为功能里程碑完成线：真机专项（通知/守护/省电/旋转/双设备）与 Beta 打磨仍在清单中，不因版本号宣称已验收。
+
+## 文档差距补齐
+- 白噪音音源用运行时合成棕噪声 WAV（10 秒首尾淡出无缝循环、雨/风两档强度），不下载素材；正式音源仍列 ASSETS_NEEDED。
+- 白噪音经 Media3 MediaSessionService（mediaPlayback FGS）承载并交由其默认媒体通知，不自写通知；UI 侧 AndroidWhiteNoise 通过服务静态实例直控、未运行时 startForegroundService 拉起。
+- 主题偏好并入 FeedbackPrefs（SharedPreferences 持久化），FocusTheme 参数化深浅色；不引入 DataStore。
+- Stats 年视图 = 自然年（1 月 1 日）口径，与月/周一致按本地时区；项目分布仅列当前范围内的项目时长条形，不做跨范围切换动画。
+- 产品文档核对结论：文档与原型中不存在"自习室"功能，未实现不是缺口；FocusPreset/Reminder/重复规则/Achievement 为文档遗留，见 PROGRESS。

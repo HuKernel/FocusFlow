@@ -81,6 +81,8 @@ fun FocusScreen(
                                 (fadeOut(tween(duration)) + slideOutVertically(tween(duration, easing = FocusMotion.easing)) { -it / 6 })
                         }, label = "focus_stage") { setupStage ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                            val noise = LocalWhiteNoise.current
+                            var noiseKind by rememberSaveable { mutableStateOf(WhiteNoiseKind.SILENCE) }
                             if (setupStage) {
                                 state.remote?.let { remote -> ObserverPanel(remote, state.busy, model::takeover) }
                                 Text("准备好，专注一件事", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -147,6 +149,14 @@ fun FocusScreen(
                                     if (stopwatch) 1f else state.elapsed.toFloat() / run.anchor.plannedDuration.coerceAtLeast(1),
                                     when (phase) { TimerState.PAUSED -> "已暂停"; TimerState.BREAKING -> "休息中"; TimerState.FOCUSING -> if (stopwatch) "已专注" else "剩余时间"; else -> "本轮已结束" })
                                 if (run.recoveredWithWallClock) Text("设备重启后的时长按系统时间估算。", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
+                        if (noise != null && running) Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                            listOf(WhiteNoiseKind.SILENCE to "无声", WhiteNoiseKind.RAIN to "雨声", WhiteNoiseKind.WIND to "风声").forEach { (kind, label) ->
+                                FilterChip(noiseKind == kind, {
+                                    noiseKind = kind
+                                    if (kind == WhiteNoiseKind.SILENCE) noise.stop() else noise.start(kind)
+                                }, label = { Text(label) })
+                            }
+                        }
                                 when {
                                     running -> {
                                         if (extreme) {

@@ -10,8 +10,8 @@ android {
         applicationId = "com.focusflow.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 14
-        versionName = "1.0.3"
+        versionCode = 15
+        versionName = "1.1.0"
     }
     buildFeatures { compose = true }
     compileOptions {
@@ -25,6 +25,8 @@ dependencies {
     implementation(project(":shared:designsystem"))
     implementation(project(":shared:network"))
     implementation(libs.glance.appwidget)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.session)
     implementation(project(":shared:database"))
     implementation(libs.activity.compose)
 }

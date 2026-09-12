@@ -49,7 +49,8 @@ class MainActivity : ComponentActivity() {
                 GuardSetupScreen(this) { guardSetupOpen = false }
             } else {
                 LaunchedEffect(Unit) { runCatching { app.sync.syncOnce() } }
-                CompositionLocalProvider(LocalFocusFeedback provides feedback) {
+                val whiteNoise = remember { AndroidWhiteNoise(this) }
+            CompositionLocalProvider(LocalFocusFeedback provides feedback, com.focusflow.designsystem.LocalWhiteNoise provides whiteNoise) {
                     FocusRoute(
                         app.tasks, app.focus, app.sync,
                         onEnableReminders = {

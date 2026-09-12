@@ -148,3 +148,12 @@
 ## 体验修正 4（2026-09-12）
 - 「我的」页重构为分组卡片：账号与同步 / 专注防护（状态 + 设置入口）/ 提醒（通知设置）/ 反馈 / 任务组织，替代原先混排一列。
 - Guard 权限与白名单入口常驻「我的」页（原先仅藏在专注准备页降级提示里）；结束提醒通知设置同样直达。版本 1.0.3 / versionCode 14。
+
+## 文档差距补齐（2026-09-12，1.1.0 / versionCode 15）
+- 白噪音：Media3 MediaSessionService（mediaPlayback FGS + 系统媒体通知）承载；运行时合成 10 秒无缝棕噪声 WAV（雨声/风声两档，无版权素材）；与音效音量独立（设置页滑条）；专注运行页可切换 无声/雨声/风声；commonMain 走 WhiteNoiseController 接口（LocalWhiteNoise），Desktop 未接线。
+- 主题：跟随系统/浅色/深色三档（设置页选择，ThemeMode 进 FeedbackPrefs 持久化），FocusTheme 增加深色配色。
+- Stats：新增"今年"范围（1 月 1 日起）与项目分布条形列表（按当前范围聚合各项目专注时长）。
+- 任务：新增可选"开始时间 HH:mm"（高级项，校验格式；清除日期时联动清除）。
+- 全量验证 `E:/FocusFlowTools/gap-final.log`：BUILD SUCCESSFUL in 3m 19s，53 项测试全部通过，lint 0 errors。
+- 交付 APK：`artifacts/FocusFlow-1.1.0-debug.apk`，SHA256 EA30DDE958C8409F750597B7C2D50B0C2B99C9794A374282C0CA6600CF67E494。
+- 仍未实现（产品文档遗留清单）：FocusPreset 自定义计时模板、任务提醒 Reminder、重复任务规则、Achievement 成就、正式音效素材；白噪音真机播放与后台行为未实测。

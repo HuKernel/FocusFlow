@@ -29,6 +29,7 @@ fun TaskEditorDialog(editor: TaskEditor, state: TasksState, onDismiss: () -> Uni
     var title by rememberSaveable(original?.id) { mutableStateOf(original?.title ?: "") }
     var description by rememberSaveable(original?.id) { mutableStateOf(original?.description ?: "") }
     var date by rememberSaveable(original?.id) { mutableStateOf(if (original == null) state.today else original.plannedDate ?: "") }
+    var startTime by rememberSaveable(original?.id) { mutableStateOf(if (original == null) "" else original.plannedStartTime ?: "") }
     var minutes by rememberSaveable(original?.id) { mutableStateOf((original?.targetFocusMinutes ?: 25).toString()) }
     var priority by rememberSaveable(original?.id) { mutableStateOf(original?.priority ?: Priority.NONE) }
     var project by rememberSaveable(original?.id) { mutableStateOf(original?.projectId) }
@@ -49,6 +50,7 @@ fun TaskEditorDialog(editor: TaskEditor, state: TasksState, onDismiss: () -> Uni
                 if (advanced) {
                     OutlinedTextField(description, { description = it }, Modifier.fillMaxWidth().testTag("task_description"), label = { Text("备注") }, minLines = 2, enabled = !state.busy)
                     OutlinedTextField(date, { date = it }, Modifier.fillMaxWidth().testTag("task_date"), label = { Text("计划日期（YYYY-MM-DD）") }, singleLine = true, enabled = !state.busy)
+                    OutlinedTextField(startTime, { startTime = it }, Modifier.fillMaxWidth().testTag("task_start_time"), label = { Text("开始时间（HH:mm，可选）") }, singleLine = true, enabled = !state.busy)
                     OutlinedTextField(minutes, { minutes = it }, Modifier.fillMaxWidth().testTag("task_minutes"), label = { Text("目标专注分钟（0 为不设目标）") },
                         singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = !state.busy)
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
@@ -69,7 +71,7 @@ fun TaskEditorDialog(editor: TaskEditor, state: TasksState, onDismiss: () -> Uni
                 val parsed = minutes.toIntOrNull()
                 if (parsed == null) validation = "目标时长需要填写整数"
                 else {
-                    val draft = TaskDraft(title, description, date.ifBlank { null }, priority, parsed, project, tags.toSet())
+                    val draft = TaskDraft(title, description, date.ifBlank { null }, startTime.ifBlank { null }, priority, parsed, project, tags.toSet())
                     try { draft.validate(); validation = null; onSave(draft) }
                     catch (error: IllegalArgumentException) { validation = error.message }
                 }
