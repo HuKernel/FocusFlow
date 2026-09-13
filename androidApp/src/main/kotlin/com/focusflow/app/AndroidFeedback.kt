@@ -104,12 +104,15 @@ fun androidFeedback(context: Context): FocusFeedback {
             reducedMotion = preferences.getBoolean("reduced_motion", systemReduced),
             themeMode = runCatching { com.focusflow.designsystem.ThemeMode.valueOf(preferences.getString("theme_mode", "SYSTEM")!!) }.getOrDefault(com.focusflow.designsystem.ThemeMode.SYSTEM),
             noiseVolume = preferences.getFloat("noise_volume", 0.6f),
+            focusBackground = runCatching { com.focusflow.designsystem.FocusBackground.valueOf(preferences.getString("focus_background", "AURORA")!!) }.getOrDefault(com.focusflow.designsystem.FocusBackground.AURORA),
+            customQuotes = preferences.getStringSet("custom_quotes", emptySet())?.toList() ?: emptyList(),
         ),
         AndroidSoundController(context),
         AndroidHapticController(context),
     ) { prefs ->
         preferences.edit().putBoolean("sound", prefs.sound)
             .putBoolean("haptic", prefs.haptic).putBoolean("reduced_motion", prefs.reducedMotion)
-            .putString("theme_mode", prefs.themeMode.name).putFloat("noise_volume", prefs.noiseVolume).apply()
+            .putString("theme_mode", prefs.themeMode.name).putFloat("noise_volume", prefs.noiseVolume)
+            .putString("focus_background", prefs.focusBackground.name).putStringSet("custom_quotes", prefs.customQuotes.toSet()).apply()
     }
 }

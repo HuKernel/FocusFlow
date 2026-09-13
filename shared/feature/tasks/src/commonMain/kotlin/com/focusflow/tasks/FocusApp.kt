@@ -384,6 +384,12 @@ private fun FeedbackSettings() {
         SettingSwitch("震动反馈", prefs.haptic, "task_setting_haptic") { value -> feedback.setPrefs(prefs.copy(haptic = value)); if (value) feedback.perform(HapticEvent.TAP) }
         SettingSwitch("减弱动效", prefs.reducedMotion, "task_setting_reduced") { value -> feedback.setPrefs(prefs.copy(reducedMotion = value)) }
         Text("减弱动效会减少位移和缩放动画，保留颜色与淡入淡出。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+        var quotesText by rememberSaveable(prefs.customQuotes) { mutableStateOf(prefs.customQuotes.joinToString("\n")) }
+        OutlinedTextField(quotesText, { quotesText = it }, Modifier.fillMaxWidth().testTag("custom_quotes"),
+            label = { Text("自定义专注语录（每行一条）") }, minLines = 2)
+        TextButton(onClick = {
+            feedback.setPrefs(prefs.copy(customQuotes = quotesText.split("\n").map { it.trim() }.filter { it.isNotEmpty() }))
+        }) { Text("保存语录") }
         if (noise != null) {
             Text("白噪音音量（与音效独立）", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
             Slider(value = prefs.noiseVolume, onValueChange = { value ->

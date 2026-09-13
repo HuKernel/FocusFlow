@@ -22,7 +22,6 @@ data class FocusState(
     val run: FocusRun? = null, val loaded: Boolean = false, val busy: Boolean = false,
     val elapsed: Long = 0, val remaining: Long = 0, val error: String? = null, val remindersAvailable: Boolean = false,
     val remote: RemoteFocus? = null,
-    val extremeCancels: Int = 0,
 )
 
 class FocusViewModel(
@@ -30,7 +29,6 @@ class FocusViewModel(
     private val presence: FocusPresence? = null,
     private val now: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) : ViewModel() {
-    companion object { const val EXTREME_CANCEL_BUDGET = 2; const val EXTREME_CANCEL_WINDOW = 24 * 3600_000L }
     private val mutable = MutableStateFlow(FocusState())
     val state = mutable.asStateFlow()
     private var reported: Pair<String, TimerState>? = null
@@ -107,11 +105,8 @@ class FocusViewModel(
     }
 
     private suspend fun show(run: FocusRun?) {
-        val cancels = kotlinx.coroutines.withTimeoutOrNull(2000) {
-            repository.extremeCancelsSince(now() - EXTREME_CANCEL_WINDOW)
-        } ?: mutable.value.extremeCancels
         mutable.update {
-            it.copy(run = run, loaded = true, extremeCancels = cancels, elapsed = run?.let(repository.engine::elapsed) ?: 0,
+            it.copy(run = run, loaded = true, elapsed = run?.let(repository.engine::elapsed) ?: 0,
                 remaining = run?.let(repository.engine::remaining) ?: 0,
                 remindersAvailable = repository.remindersAvailable,
                 remote = it.remote?.let { remote -> estimateRemoteFocus(remote.snapshot, now(), myDeviceId) })

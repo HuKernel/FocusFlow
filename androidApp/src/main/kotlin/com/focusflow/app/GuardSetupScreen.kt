@@ -24,6 +24,16 @@ fun GuardSetupScreen(context: android.content.Context, onBack: () -> Unit) {
     val config = remember { GuardPrefs.config(context) }
     var consented by remember { mutableStateOf(config.consentAt != null) }
     var whitelist by remember { mutableStateOf(GuardPrefs.whitelist(context)) }
+    var pickerOpen by remember { mutableStateOf(false) }
+    // 可启动应用列表（launcher intent 查询，无需 QUERY_ALL_PACKAGES）
+    val installedApps = remember {
+        val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+        context.packageManager.queryIntentActivities(intent, 0)
+            .mapNotNull { info -> info.activityInfo?.let { (info.loadLabel(context.packageManager).toString()) to it.packageName } }
+            .filter { it.second != context.packageName }
+            .distinctBy { it.second }
+            .sortedBy { it.first }
+    }
     var capabilities by remember { mutableStateOf(GuardPrefs.capabilities(context)) }
     var requestedMode by remember { mutableStateOf(config.mode) }
     FocusTheme {
@@ -69,27 +79,27 @@ fun GuardSetupScreen(context: android.content.Context, onBack: () -> Unit) {
                     }
                     item {
                         Text("白名单应用", style = MaterialTheme.typography.titleMedium)
-                        Text("严格模式运行时，白名单内应用与启动器、本应用不会触发提醒。列表仅保存在本机。", style = MaterialTheme.typography.bodySmall)
+                        Text("严格模式运行时，白名单内应用与启动器、本应用不会触发提醒。勾选列表来自本机可启动应用，仅保存在本机、不上传。", style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick = { pickerOpen = true }, Modifier.testTag("guard_whitelist_picker")) { Text("选择白名单应用（已选 ${whitelist.size}）") }
                     }
-                    items(whitelist, key = { it.packageName }) { app ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column { Text(app.label, fontWeight = FontWeight.SemiBold); Text(app.packageName, style = MaterialTheme.typography.bodySmall) }
-                            TextButton(onClick = {
-                                whitelist = whitelist - app
-                                GuardPrefs.saveWhitelist(context, whitelist)
-                            }) { Text("移除") }
-                        }
-                    }
-                    item {
-                        var packageName by remember { mutableStateOf("") }
-                        OutlinedTextField(packageName, { packageName = it }, Modifier.fillMaxWidth().testTag("guard_whitelist_input"), label = { Text("应用包名，如 com.example.app") }, singleLine = true)
-                        Button(onClick = {
-                            if (packageName.isNotBlank() && whitelist.none { it.packageName == packageName.trim() }) {
-                                whitelist = whitelist + AllowedApp(packageName.trim(), packageName.trim().substringAfterLast('.'))
-                                GuardPrefs.saveWhitelist(context, whitelist)
-                            }
-                            packageName = ""
-                        }, enabled = packageName.isNotBlank()) { Text("添加到白名单") }
+                    if (pickerOpen) item {
+                        AlertDialog(onDismissRequest = { pickerOpen = false }, title = { Text("白名单应用") },
+                            text = {
+                                LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                                    items(installedApps, key = { it.second }) { (label, packageName) ->
+                                        val checked = whitelist.any { it.packageName == packageName }
+                                        Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                            Checkbox(checked, { onToggle ->
+                                                whitelist = if (onToggle) whitelist + AllowedApp(packageName, label)
+                                                else whitelist.filterNot { it.packageName == packageName }
+                                                GuardPrefs.saveWhitelist(context, whitelist)
+                                            })
+                                            Column { Text(label, fontWeight = FontWeight.SemiBold); Text(packageName, style = MaterialTheme.typography.bodySmall) }
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = { TextButton(onClick = { pickerOpen = false }) { Text("完成") } })
                     }
                     item {
                         Text("厂商后台可靠性", style = MaterialTheme.typography.titleMedium)

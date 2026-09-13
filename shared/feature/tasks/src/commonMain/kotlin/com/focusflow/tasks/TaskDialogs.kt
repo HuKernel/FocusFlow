@@ -58,8 +58,9 @@ fun TaskEditorDialog(editor: TaskEditor, state: TasksState, onDismiss: () -> Uni
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                         ChoiceMenu("项目", project, state.data.projects.map { it.id to it.name }, { project = it }, "无项目")
                         ChoiceMenu("优先级", priority.name, Priority.entries.map { it.name to priorityLabel(it) }, { priority = it?.let(Priority::valueOf) ?: Priority.NONE }, "无优先级")
-                        ChoiceMenu("专注模式", mode, listOf("", FocusMode.NORMAL.name, FocusMode.SOFT.name, FocusMode.STRICT.name, FocusMode.EXTREME.name).map { it to (if (it.isEmpty()) "进入时选择" else focusModeLabel(FocusMode.valueOf(it))) },
-                            { mode = it?.takeIf { it.isNotEmpty() } })
+                        ChoiceMenu("专注模式", mode, listOf("", FocusMode.NORMAL.name, FocusMode.SOFT.name, FocusMode.STRICT.name, FocusMode.EXTREME.name)
+                            .map { name: String -> name to (if (name.isEmpty()) "进入时选择" else focusModeLabel(FocusMode.valueOf(name))) },
+                            { value: String? -> mode = if (value.isNullOrEmpty()) null else value })
                     }
                     Text("设置了专注模式的任务，点击「开始专注」直接按该模式开始（权限不足时进入准备页查看降级说明）。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
                     Text("标签（可多选）", style = MaterialTheme.typography.labelLarge)

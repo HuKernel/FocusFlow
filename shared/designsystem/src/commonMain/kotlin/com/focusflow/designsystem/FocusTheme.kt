@@ -33,6 +33,30 @@ fun interface SoundController { fun play(event: SoundEvent) }
 fun interface HapticController { fun perform(event: HapticEvent) }
 
 enum class WhiteNoiseKind { RAIN, WIND, SILENCE }
+
+/** 专注页预设背景：纯本地渐变，不使用图片素材、不申请任何权限。 */
+enum class FocusBackground(val label: String) {
+    AURORA("极光紫"), OCEAN("深海蓝"), FOREST("森林绿"), DUSK("暮色橙"), PLAIN("素雅浅色");
+}
+
+/** 内置专注语录；用户可在设置中追加自定义（
+ 分隔存 FeedbackPrefs）。 */
+object FocusQuotes {
+    val builtIn = listOf(
+        "一次只做一件事，做到底。",
+        "开始，就是最难的部份。",
+        "专注是安静的坚持。",
+        "别急，时间会给出答案。",
+        "此刻，只属于这一件事。",
+        "深度来自不被打扰的时长。",
+        "种一棵树最好的时间是二十五分钟前。",
+    )
+    fun pick(custom: List<String>, seed: Long): String {
+        val all = builtIn + custom
+        if (all.isEmpty()) return "专注"
+        return all[(seed % all.size).toInt().coerceAtLeast(0)]
+    }
+}
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 /** 白噪音与音效音量独立；实现负责后台播放与音频焦点。 */
