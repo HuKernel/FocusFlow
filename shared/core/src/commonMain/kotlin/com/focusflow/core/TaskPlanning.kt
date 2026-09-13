@@ -16,6 +16,7 @@ data class TaskDraft(
     val plannedDate: String? = null,
     val plannedStartTime: String? = null,
     val priority: Priority = Priority.NONE,
+    val preferredFocusMode: FocusMode? = null,
     val targetFocusMinutes: Int = 25,
     val projectId: String? = null,
     val tagIds: Set<String> = emptySet(),

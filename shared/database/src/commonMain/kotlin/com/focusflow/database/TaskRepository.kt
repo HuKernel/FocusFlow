@@ -55,6 +55,8 @@ class TaskRepository(
             val timestamp = now()
             val task = (previous ?: Task(newId(), identity().userId, draft.title.trim(), createdAt = timestamp)).copy(
                 title = draft.title.trim(), description = draft.description.trim(), plannedDate = draft.plannedDate,
+                plannedStartTime = if (draft.plannedDate != null) draft.plannedStartTime else null,
+                preferredFocusMode = draft.preferredFocusMode,
                 priority = draft.priority, targetFocusMinutes = draft.targetFocusMinutes, projectId = draft.projectId,
                 updatedAt = timestamp, revision = (previous?.revision ?: 0) + 1,
             )

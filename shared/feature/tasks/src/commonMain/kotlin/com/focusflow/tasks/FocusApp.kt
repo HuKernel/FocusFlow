@@ -177,10 +177,24 @@ fun FocusApp(
                         }
                         if (visible.isEmpty()) item { EmptyState(if (selected == Destination.TODAY) "今天，先做好一件事" else "没有符合条件的任务", "点击右下角 + 创建任务，也可以调整筛选。") }
                         items(visible, key = { it.id }) { task ->
+                            val feedback = LocalFocusFeedback.current
                             TaskCard(task, state, progress[task.id] ?: 0, modifier = Modifier.animateItem(),
                                 onOpen = { detailId = task.id; detailOpen = true },
                                 onComplete = { model.complete(task, it) },
-                                onStart = { requestedTask = task.id; selected = Destination.FOCUS })
+                                onStart = {
+                                    val preferred = task.preferredFocusMode
+                                    // NORMAL 不依赖任何权限；其他模式需平台能力齐备且不降级才直开
+                                    val effective = guardCapabilities?.invoke()?.let { caps -> effectiveMode(preferred ?: FocusMode.NORMAL, caps) }
+                                        ?: preferred.takeIf { it == FocusMode.NORMAL }
+                                    if (preferred != null && effective == preferred) {
+                                        // 权限齐备：按任务预设模式直接开始；时长用目标专注分钟，未设目标则正计时
+                                        val duration = if (task.targetFocusMinutes > 0) task.targetFocusMinutes * 60_000L else 0L
+                                        feedback.play(SoundEvent.FOCUS_START); feedback.perform(HapticEvent.START_FOCUS)
+                                        if (preferred != FocusMode.NORMAL) onGuardModeApplied?.invoke(preferred)
+                                        focus.start(task.id, duration, if (duration > 0) TimerType.COUNTDOWN else TimerType.STOPWATCH, preferred)
+                                    } else { requestedTask = task.id }
+                                    selected = Destination.FOCUS
+                                })
                         }
                     } else when (selected) {
                         Destination.STATS -> item {
@@ -294,6 +308,10 @@ fun FocusApp(
         dismissButton = { TextButton(onClick = { deleteId = null }) { Text("取消") } })
     if (managing) OrganizationDialog(state, model, onDismiss = { managing = false; model.clearError() })
     }
+}
+
+val focusModeLabel: (FocusMode) -> String = {
+    when (it) { FocusMode.NORMAL -> "普通"; FocusMode.SOFT -> "软性"; FocusMode.STRICT -> "严格"; FocusMode.EXTREME -> "极致" }
 }
 
 fun priorityLabel(priority: Priority): String = when (priority) {

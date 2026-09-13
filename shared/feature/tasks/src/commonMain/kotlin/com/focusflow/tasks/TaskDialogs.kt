@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.focusflow.core.*
+import com.focusflow.designsystem.*
 import com.focusflow.designsystem.FocusSpacing
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -30,6 +31,7 @@ fun TaskEditorDialog(editor: TaskEditor, state: TasksState, onDismiss: () -> Uni
     var description by rememberSaveable(original?.id) { mutableStateOf(original?.description ?: "") }
     var date by rememberSaveable(original?.id) { mutableStateOf(if (original == null) state.today else original.plannedDate ?: "") }
     var startTime by rememberSaveable(original?.id) { mutableStateOf(if (original == null) "" else original.plannedStartTime ?: "") }
+    var mode by rememberSaveable(original?.id) { mutableStateOf(original?.preferredFocusMode?.name) }
     var minutes by rememberSaveable(original?.id) { mutableStateOf((original?.targetFocusMinutes ?: 25).toString()) }
     var priority by rememberSaveable(original?.id) { mutableStateOf(original?.priority ?: Priority.NONE) }
     var project by rememberSaveable(original?.id) { mutableStateOf(original?.projectId) }
@@ -56,7 +58,10 @@ fun TaskEditorDialog(editor: TaskEditor, state: TasksState, onDismiss: () -> Uni
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                         ChoiceMenu("项目", project, state.data.projects.map { it.id to it.name }, { project = it }, "无项目")
                         ChoiceMenu("优先级", priority.name, Priority.entries.map { it.name to priorityLabel(it) }, { priority = it?.let(Priority::valueOf) ?: Priority.NONE }, "无优先级")
+                        ChoiceMenu("专注模式", mode, listOf("", FocusMode.NORMAL.name, FocusMode.SOFT.name, FocusMode.STRICT.name, FocusMode.EXTREME.name).map { it to (if (it.isEmpty()) "进入时选择" else focusModeLabel(FocusMode.valueOf(it))) },
+                            { mode = it?.takeIf { it.isNotEmpty() } })
                     }
+                    Text("设置了专注模式的任务，点击「开始专注」直接按该模式开始（权限不足时进入准备页查看降级说明）。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
                     Text("标签（可多选）", style = MaterialTheme.typography.labelLarge)
                     if (state.data.tags.isEmpty()) Text("先在“管理项目和标签”中添加标签。", style = MaterialTheme.typography.bodySmall)
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
@@ -71,7 +76,9 @@ fun TaskEditorDialog(editor: TaskEditor, state: TasksState, onDismiss: () -> Uni
                 val parsed = minutes.toIntOrNull()
                 if (parsed == null) validation = "目标时长需要填写整数"
                 else {
-                    val draft = TaskDraft(title, description, date.ifBlank { null }, startTime.ifBlank { null }, priority, parsed, project, tags.toSet())
+                    val draft = TaskDraft(title = title, description = description, plannedDate = date.ifBlank { null },
+                        plannedStartTime = startTime.ifBlank { null }, preferredFocusMode = mode?.let(FocusMode::valueOf),
+                        priority = priority, targetFocusMinutes = parsed, projectId = project, tagIds = tags.toSet())
                     try { draft.validate(); validation = null; onSave(draft) }
                     catch (error: IllegalArgumentException) { validation = error.message }
                 }

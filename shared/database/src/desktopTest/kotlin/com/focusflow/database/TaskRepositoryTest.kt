@@ -65,7 +65,7 @@ class TaskRepositoryTest {
     }
 
     @Test fun migratesOldVersionsWithoutLosingTaskOrSession() = runBlocking {
-        for (version in 1..4) {
+        for (version in 1..5) {
         val file = Files.createTempDirectory("focusflow-migration").resolve("tasks.db").toFile()
         val schema = Json.parseToJsonElement(javaClass.getResourceAsStream("/com.focusflow.database.FocusDatabase/$version.json")!!.bufferedReader().readText()).jsonObject["database"]!!.jsonObject
         val connection = BundledSQLiteDriver().open(file.absolutePath)

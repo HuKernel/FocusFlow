@@ -50,7 +50,7 @@ fun FocusScreen(
     }
     var validation by rememberSaveable { mutableStateOf<String?>(null) }
     var cancelling by rememberSaveable { mutableStateOf(false) }
-    var selectedMode by rememberSaveable { mutableStateOf(FocusMode.NORMAL) }
+    var selectedMode by rememberSaveable(requestedTask) { mutableStateOf(requestedTask?.let { id -> tasks.firstOrNull { it.id == id }?.preferredFocusMode } ?: FocusMode.NORMAL) }
     val run = state.run
     LaunchedEffect(state.error) { if (state.error != null) feedback.play(SoundEvent.ERROR) }
     var announcedCompletion by remember { mutableStateOf<String?>(null) }

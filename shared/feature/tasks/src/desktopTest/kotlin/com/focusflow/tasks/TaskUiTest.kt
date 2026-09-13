@@ -18,6 +18,7 @@ import com.focusflow.core.TimerState
 import com.focusflow.focus.FocusViewModel
 import com.focusflow.database.*
 import java.nio.file.Files
+import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
 import org.junit.*
 
@@ -25,7 +26,8 @@ class TaskUiTest {
     @get:Rule val compose = createComposeRule()
     private val directory = Files.createTempDirectory("focusflow-ui").toFile()
     private val database = openDatabase(directory.resolve("ui.db"))
-    private val model = TasksViewModel(TaskRepository(database))
+    private val repository = TaskRepository(database)
+    private val model = TasksViewModel(repository)
     private val clockStart = System.currentTimeMillis() // 与 state.today 同源，保证统计范围命中
     private val clock = object : FocusClock {
         var time = 0L
@@ -247,5 +249,22 @@ class TaskUiTest {
         compose.onNodeWithText("任务组织").assertExists()
         compose.onNodeWithTag("task_list").performScrollToNode(hasText("通知设置"))
         compose.onNodeWithText("通知设置").assertExists()
+    }
+
+    @Test fun taskWithPreferredModeStartsFocusDirectly() {
+        show()
+        runBlocking {
+            repository.saveTask(com.focusflow.core.TaskDraft(
+                title = "Direct start", targetFocusMinutes = 25,
+                preferredFocusMode = com.focusflow.core.FocusMode.NORMAL))
+        }
+        compose.waitUntil(10000) { model.state.value.data.tasks.size == 1 }
+        val task = model.state.value.data.tasks.single()
+        assertEquals(com.focusflow.core.FocusMode.NORMAL, task.preferredFocusMode)
+        compose.onNodeWithText("任务").performClick()
+        compose.onNodeWithTag("quick_focus_${task.id}").performClick()
+        compose.waitUntil(10000) { focus.state.value.run != null && !focus.state.value.busy }
+        compose.onNodeWithText("准备好，专注一件事").assertDoesNotExist()
+        compose.onNodeWithTag("pause_resume").assertExists()
     }
 }

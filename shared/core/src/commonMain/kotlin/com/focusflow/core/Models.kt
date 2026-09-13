@@ -22,6 +22,7 @@ import kotlinx.serialization.Serializable
     val plannedDate: String? = null,
     val plannedStartTime: String? = null,
     val targetFocusMinutes: Int = 25,
+    val preferredFocusMode: FocusMode? = null,
     val completedAt: Long? = null,
     val createdAt: Long,
     val updatedAt: Long = createdAt,

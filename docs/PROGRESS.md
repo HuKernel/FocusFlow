@@ -157,3 +157,9 @@
 - 全量验证 `E:/FocusFlowTools/gap-final.log`：BUILD SUCCESSFUL in 3m 19s，53 项测试全部通过，lint 0 errors。
 - 交付 APK：`artifacts/FocusFlow-1.1.0-debug.apk`，SHA256 EA30DDE958C8409F750597B7C2D50B0C2B99C9794A374282C0CA6600CF67E494。
 - 仍未实现（产品文档遗留清单）：FocusPreset 自定义计时模板、任务提醒 Reminder、重复任务规则、Achievement 成就、正式音效素材；白噪音真机播放与后台行为未实测。
+
+## 体验修正 5（2026-09-12，1.1.1 / versionCode 16）
+- 任务级专注模式：创建/编辑任务（高级项）可选"进入时选择/普通/软性/严格/极致"；设置了模式的任务点「开始专注」直接按该模式开始（时长=目标专注分钟，未设目标则正计时），权限不足会降级时则进准备页展示降级说明。
+- 从任务进入准备页时模式预选为任务预设；未设置模式的任务行为不变。Room schema v6（tasks.preferredFocusMode），迁移测试覆盖 v1–v5→v6。
+- 顺带修复：plannedStartTime 此前未随保存落库（无测试覆盖未暴露），一并接通。
+- 全量验证 54 项测试全部通过（新增直开流程 UI 测试）；APK `artifacts/FocusFlow-1.1.1-debug.apk`，SHA256 EF4A4961A784B76B7E9E8CE2FEFED0978945D7E5A8E342D8376F72630D58DEE0。
