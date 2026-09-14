@@ -41,21 +41,34 @@ class WhiteNoiseService : MediaSessionService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    /** WAV 首次生成约 900KB，移出主线程；任何失败静默（白噪音绝不允许拖垮专注）。 */
     fun start(kind: WhiteNoiseKind) {
         if (kind == WhiteNoiseKind.SILENCE) { stop(); return }
-        val mediaSession = session ?: MediaSession.Builder(this, buildPlayer()).build().also { session = it }
-        player = mediaSession.player as ExoPlayer
-        player?.apply {
-            volume = getSharedPreferences("white_noise", MODE_PRIVATE).getFloat("volume", 0.6f)
-            setMediaItem(MediaItem.fromUri(noiseFile(this@WhiteNoiseService, kind).toURI().toString()))
-            prepare()
-            play()
-        }
+        val context = this
+        Thread {
+            val file = runCatching { noiseFile(context, kind) }.getOrNull()
+            mainHandler.post {
+                runCatching {
+                    val mediaSession = session ?: MediaSession.Builder(this, buildPlayer()).build().also { session = it }
+                    player = mediaSession.player as ExoPlayer
+                    player?.apply {
+                        volume = getSharedPreferences("white_noise", MODE_PRIVATE).getFloat("volume", 0.6f)
+                        setMediaItem(MediaItem.fromUri(file!!.toURI().toString()))
+                        prepare()
+                        play()
+                    }
+                }
+            }
+        }.start()
     }
 
     fun stop() {
-        player?.stop()
-        stopSelf()
+        runCatching {
+            player?.stop()
+            stopSelf()
+        }
     }
 
     private fun buildPlayer(): ExoPlayer = ExoPlayer.Builder(this)
@@ -120,20 +133,27 @@ class AndroidWhiteNoise(private val context: Context) : WhiteNoiseController {
         get() = preferences.getFloat("volume", 0.6f)
 
     override fun start(kind: WhiteNoiseKind) {
-        val running = WhiteNoiseService.instance
-        if (running != null) running.start(kind)
-        else context.startForegroundService(
-            Intent(context, WhiteNoiseService::class.java).setAction("com.focusflow.app.NOISE_START").putExtra("kind", kind.name))
+        // 白噪音只是体验增强：任何失败（如屏幕固定下系统拒绝前台服务）都静默，绝不中断专注
+        runCatching {
+            val running = WhiteNoiseService.instance
+            if (running != null) running.start(kind)
+            else context.startForegroundService(
+                Intent(context, WhiteNoiseService::class.java).setAction("com.focusflow.app.NOISE_START").putExtra("kind", kind.name))
+        }
     }
 
     override fun stop() {
-        val running = WhiteNoiseService.instance
-        if (running != null) running.stop()
-        else context.startService(Intent(context, WhiteNoiseService::class.java).setAction("com.focusflow.app.NOISE_STOP"))
+        runCatching {
+            val running = WhiteNoiseService.instance
+            if (running != null) running.stop()
+            else context.startService(Intent(context, WhiteNoiseService::class.java).setAction("com.focusflow.app.NOISE_STOP"))
+        }
     }
 
     override fun setVolume(volume: Float) {
-        preferences.edit().putFloat("volume", volume).apply()
-        WhiteNoiseService.instance?.player?.setVolume(volume.coerceIn(0f, 1f))
+        runCatching {
+            preferences.edit().putFloat("volume", volume).apply()
+            WhiteNoiseService.instance?.player?.setVolume(volume.coerceIn(0f, 1f))
+        }
     }
 }
