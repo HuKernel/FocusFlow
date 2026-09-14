@@ -32,3 +32,6 @@ val LocalWhiteNoise = staticCompositionLocalOf<WhiteNoiseController?> { null }
 
 /** 自定义背景位图：平台层在用户选择图片后提供；路径存 FeedbackPrefs.customBackgroundPath。 */
 val LocalCustomBackground = staticCompositionLocalOf<androidx.compose.ui.graphics.ImageBitmap?> { null }
+
+/** 内置背景位图（平台层从资源解码）；无图的背景回退到渐变。 */
+val LocalBuiltinBackgrounds = staticCompositionLocalOf<Map<FocusBackground, androidx.compose.ui.graphics.ImageBitmap>> { emptyMap() }

@@ -289,8 +289,18 @@ fun FocusApp(
                                     "appearance" -> {
                                         item { SettingsPageHeader("外观与反馈") { open(null) } }
                                         item {
-                                            Text("自定义背景：从相册选择专注页背景（仅本机保存，不申请其他权限）。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
-                                            if (onPickCustomBackground != null) OutlinedButton(onClick = onPickCustomBackground, Modifier.fillMaxWidth().testTag("pick_background")) { Text("选择自定义背景") }
+                                            val feedback = LocalFocusFeedback.current
+                                            val bgPrefs by feedback.prefs.collectAsState()
+                                            Text("专注页背景", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                                com.focusflow.designsystem.FocusBackground.entries.forEach { bg ->
+                                                    FilterChip(bgPrefs.focusBackground == bg, {
+                                                        if (bg == com.focusflow.designsystem.FocusBackground.CUSTOM) onPickCustomBackground?.invoke()
+                                                        feedback.setPrefs(bgPrefs.copy(focusBackground = bg))
+                                                    }, label = { Text(bg.label) }, modifier = Modifier.testTag("bg_${bg.name}"))
+                                                }
+                                            }
+                                            Text("自定义：从相册选择图片（仅本机保存，不申请其他权限）。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
                                         }
                                         item { FeedbackSettings() }
                                     }

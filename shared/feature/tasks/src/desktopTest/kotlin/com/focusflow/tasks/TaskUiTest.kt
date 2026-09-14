@@ -233,7 +233,7 @@ class TaskUiTest {
         compose.onNodeWithText("统计").performClick()
         compose.onNodeWithText("专注").performClick()
         compose.onNodeWithTag("guard_mode_EXTREME").performScrollTo().performClick()
-        compose.onNodeWithText("极致模式：使用系统屏幕固定，长按返回键可退出（Emergency Exit）。").assertExists()
+        compose.onNodeWithText("极致模式：使用系统屏幕固定，开始后无法退出，直到计时结束自动解锁。").assertExists()
         // 严格缺无障碍时降级为普通并提示向导入口
         compose.onNodeWithTag("guard_mode_STRICT").performScrollTo().performClick()
         compose.onNodeWithText("当前权限下按普通模式计时：可随时离开，不限制其他应用。").assertExists()

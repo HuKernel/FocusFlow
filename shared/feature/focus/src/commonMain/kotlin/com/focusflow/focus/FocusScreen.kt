@@ -82,13 +82,19 @@ fun FocusScreen(
     }
     val theme = focusBackgroundTheme(prefs.focusBackground)
     val customBitmap = LocalCustomBackground.current
+    // 内置背景优先用平台层提供的照片（无则回退渐变）；自定义背景用用户图片
+    val backgroundImage = if (prefs.focusBackground == FocusBackground.CUSTOM) customBitmap
+        else LocalBuiltinBackgrounds.current[prefs.focusBackground]
     val quote = remember(state.run?.session?.id) {
         FocusQuotes.pick(prefs.customQuotes, (state.run?.session?.startedAt ?: requestedTask?.hashCode()?.toLong() ?: System.currentTimeMillis()).coerceAtLeast(0))
     }
     Box(Modifier.fillMaxSize()) {
-        if (prefs.focusBackground == FocusBackground.CUSTOM && customBitmap != null) {
-            Image(customBitmap, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f)))
+        if (backgroundImage != null) {
+            Image(backgroundImage, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            // 遮罩保证可读性：深色主题压黑，浅色主题（暖米白）压白
+            Box(Modifier.fillMaxSize().background(
+                if (theme.dark) androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.50f)
+                else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.60f)))
         } else Box(Modifier.fillMaxSize().background(theme.brush ?: androidx.compose.ui.graphics.Brush.verticalGradient(
             listOf(androidx.compose.ui.graphics.Color(0xFF12121C), androidx.compose.ui.graphics.Color(0xFF101018)))))
     CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides theme.content) {
@@ -99,7 +105,7 @@ fun FocusScreen(
                 Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(FocusSpacing.large),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        // 极致模式运行中不提供离开入口：只能等计时结束或系统长按返回退出固定
+                        // 极致模式运行中不提供离开入口：长按返回等系统退出后会在 1 秒内重新固定
                         val extremeRunning = state.run?.let { it.session.strictMode == FocusMode.EXTREME && (it.anchor.state == TimerState.FOCUSING || it.anchor.state == TimerState.PAUSED) } == true
                         if (!extremeRunning) TextButton(onClick = onBack) { Text("返回任务") }
                         Spacer(Modifier.weight(1f))
@@ -149,7 +155,7 @@ fun FocusScreen(
                                         FocusMode.NORMAL -> "当前权限下按普通模式计时：可随时离开，不限制其他应用。"
                                         FocusMode.SOFT -> "软性模式：允许切换应用，专注结束后可查看中断记录（需使用情况访问）。"
                                         FocusMode.STRICT -> "严格模式：离开白名单应用会收到回到专注的提醒。"
-                                        FocusMode.EXTREME -> "极致模式：使用系统屏幕固定，长按返回键可退出（Emergency Exit）。"
+                                        FocusMode.EXTREME -> "极致模式：使用系统屏幕固定，开始后无法退出，直到计时结束自动解锁。"
                                     }, color = theme.secondary, style = MaterialTheme.typography.bodySmall)
                                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                                         FocusBackground.entries.forEach { bg ->
@@ -209,7 +215,7 @@ fun FocusScreen(
                                 when {
                                     running -> {
                                         if (extreme) {
-                                            Text("极致模式不提供暂停；如需临时离开请长按返回键退出屏幕固定（计入中断）。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
+                                            Text("极致模式不提供暂停，也无法中途退出：长按返回等系统退出会在 1 秒内被重新固定，请等计时结束。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
                                         } else Button(onClick = {
                                             if (phase == TimerState.PAUSED) { feedback.play(SoundEvent.FOCUS_RESUME); model.resume(run.session.id) }
                                             else { feedback.play(SoundEvent.FOCUS_PAUSE); model.pause(run.session.id) }
@@ -225,7 +231,7 @@ fun FocusScreen(
                                         if (stopwatch) Button(onClick = { model.complete(run.session.id) },
                                             enabled = !state.busy, modifier = Modifier.testTag("complete_focus")) { Text("完成专注") }
                                         if (!extreme) OutlinedButton(onClick = { cancelling = true }, enabled = !state.busy) { Text("取消本次专注") }
-                                        else Text("极致模式不支持中途取消：请等待计时结束（正计时请点「完成专注」）；紧急情况可长按返回键退出屏幕固定，但专注不会终止。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
+                                        else Text("极致模式不支持中途取消：请等待计时结束（正计时请点「完成专注」）；计时结束前无法退出，长按返回也会被重新固定。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
                                     }
                                     breaking -> {
                                         Text("休息中：现在可以自由使用手机，休息结束会自动开始下一轮专注；时间不会计入任务进度。")

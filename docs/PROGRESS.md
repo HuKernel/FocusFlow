@@ -198,3 +198,9 @@
 - 新增 TimerEngineTest.customBreakDurationDrivesBreakPhase 与 FocusRepositoryTest breakDuration 持久化断言；core/database/tasks/focus/sync/network desktopTest 全绿；已真机升级安装（1.4.4 → 1.4.5，android-user debug 签名）。
 - 交付 APK：`artifacts/FocusFlow-1.4.5-debug.apk`，SHA256 C0F9B65EE9DF5B48098BCBDFDA8578C0857CF43DDF5080C3764BBAC0AF68B3AA。
 - 注：E:\桌面\FocusFlow 是本仓库 1.1.0 时期的旧副本（含未提交半成品），同日亦在其中复刻了相同两项修复（该目录 1.1.1 / versionCode 16，未提交）；主线以本仓库为准。
+
+## 背景图片化 + 极致防退出（2026-09-14，1.4.6 / versionCode 25）
+- 修复自定义背景"上传无效果"两个根因：设置页只有选图按钮、从未把 focusBackground 切到 CUSTOM（现外观页有完整背景选择，选图成功即自动切换）；背景文件固定名 focus_bg 导致二次选择路径不变、界面不刷新（现文件名带时间戳，旧文件自动清理）。
+- 内置背景由纯渐变升级为照片：drawable-nodpi 内置 5 张 1080x1920 图片（picsum.photos seed focusflow-* 生成，Unsplash 免费商用图库），commonMain 经 LocalBuiltinBackgrounds 注入，无图/解码失败回退原渐变；深色主题压 50% 黑遮罩、暖米白压 60% 白遮罩保证可读性。Desktop 不提供 → 仍渐变。
+- 极致模式防退出加强：专注进行中每秒校验 isInLockTaskMode，长按返回等系统退出后 1 秒内自动重新 startLockTask；全部极致模式文案（准备页/运行页/向导）同步改为"确认后直到计时结束无法退出"。平台边界不变：无法阻止强制关机/adb/系统卸载，消费级应用不做按键拦截（Play 政策）。
+- tasks/focus desktopTest 全绿；已真机升级安装。交付 APK：`artifacts/FocusFlow-1.4.6-debug.apk`。

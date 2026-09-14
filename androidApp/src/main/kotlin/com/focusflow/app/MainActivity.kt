@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.focusflow.core.FocusMode
+import com.focusflow.designsystem.FocusBackground
 import android.graphics.BitmapFactory
 import androidx.compose.ui.graphics.asImageBitmap
 import com.focusflow.designsystem.LocalCustomBackground
@@ -43,7 +44,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val app = application as FocusFlowApplication
             val feedback = remember { app.feedback }
-            // STRICT 生效时开启守护；EXTREME 追加系统屏幕固定（用户在系统弹窗确认，长按返回可退出）
+            // STRICT 生效时开启守护；EXTREME 追加系统屏幕固定（确认后失锁会在 1 秒内重新固定）
             val applyGuardMode: (FocusMode) -> Unit = { mode ->
                 GuardPrefs.setGuardActive(this, mode == com.focusflow.core.FocusMode.STRICT)
                 if (mode == com.focusflow.core.FocusMode.EXTREME) runCatching { startLockTask() }
@@ -52,19 +53,45 @@ class MainActivity : ComponentActivity() {
                 GuardPrefs.setGuardActive(this, false)
                 runCatching { stopLockTask() }
             }
-            // 相册选择专注页背景：拷贝到本机，仅存路径（无需存储权限，系统照片选择器）
+            // 相册选择专注页背景：拷贝到本机（文件名带时间戳，保证路径变化触发重组刷新），仅存路径（无需存储权限，系统照片选择器）
             val pickBackground = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
                 uri?.let { source ->
                     runCatching {
-                        val target = File(filesDir, "focus_bg")
+                        val previous = app.feedback.prefs.value.customBackgroundPath
+                        val target = File(filesDir, "focus_bg_${System.currentTimeMillis()}")
                         contentResolver.openInputStream(source)?.use { input -> target.outputStream().use { input.copyTo(it) } }
-                        app.feedback.setPrefs(app.feedback.prefs.value.copy(customBackgroundPath = target.absolutePath))
+                        previous?.let { old -> File(old).takeIf { it.name.startsWith("focus_bg_") }?.delete() }
+                        app.feedback.setPrefs(app.feedback.prefs.value.copy(customBackgroundPath = target.absolutePath, focusBackground = FocusBackground.CUSTOM))
+                    }
+                }
+            }
+            // 极致专注进行中每秒校验屏幕固定：长按返回等系统退出后 1 秒内重新固定（消费级应用的极限，见 FOCUS_GUARD 文档）
+            val activeRun by app.focus.runs.collectAsState(initial = null)
+            LaunchedEffect(Unit) {
+                while (true) {
+                    kotlinx.coroutines.delay(1000)
+                    if (activeRun != null && activeRun!!.session.strictMode == FocusMode.EXTREME &&
+                        activeRun!!.anchor.state == com.focusflow.core.TimerState.FOCUSING &&
+                        !getSystemService(android.app.ActivityManager::class.java).isInLockTaskMode) {
+                        runCatching { startLockTask() }
                     }
                 }
             }
             val prefs by feedback.prefs.collectAsState()
             val customBitmap = remember(prefs.customBackgroundPath) {
                 prefs.customBackgroundPath?.let { path -> runCatching { BitmapFactory.decodeFile(path)?.asImageBitmap() }.getOrNull() }
+            }
+            // 内置背景：drawable 照片（1080x1920，picsum/Unsplash 免费图库）；解码失败回退渐变
+            val builtinBackgrounds = remember {
+                listOf(
+                    com.focusflow.designsystem.FocusBackground.OBSIDIAN to R.drawable.bg_obsidian,
+                    com.focusflow.designsystem.FocusBackground.MIDNIGHT to R.drawable.bg_midnight,
+                    com.focusflow.designsystem.FocusBackground.ROSE to R.drawable.bg_rose,
+                    com.focusflow.designsystem.FocusBackground.TEAL to R.drawable.bg_teal,
+                    com.focusflow.designsystem.FocusBackground.WARM to R.drawable.bg_warm,
+                ).mapNotNull { (bg, res) ->
+                    runCatching { BitmapFactory.decodeResource(resources, res)?.asImageBitmap() }.getOrNull()?.let { bg to it }
+                }.toMap()
             }
             val appVersion = remember { runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() }
             if (guardSetupOpen) {
@@ -73,7 +100,8 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(Unit) { runCatching { app.sync.syncOnce() } }
                 val whiteNoise = remember { AndroidWhiteNoise(this) }
             CompositionLocalProvider(LocalFocusFeedback provides feedback, com.focusflow.designsystem.LocalWhiteNoise provides whiteNoise,
-                LocalCustomBackground provides customBitmap) {
+                LocalCustomBackground provides customBitmap,
+                com.focusflow.designsystem.LocalBuiltinBackgrounds provides builtinBackgrounds) {
                     FocusRoute(
                         app.tasks, app.focus, app.sync,
                         onEnableReminders = {

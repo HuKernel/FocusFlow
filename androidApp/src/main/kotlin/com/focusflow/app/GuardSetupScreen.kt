@@ -75,7 +75,7 @@ fun GuardSetupScreen(context: android.content.Context, onBack: () -> Unit) {
                         TextButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) } }) { Text("打开使用情况访问") }
                         PermissionRow("无障碍服务（严格模式守护）", capabilities.accessibilityGranted) { }
                         TextButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) } }) { Text("打开无障碍设置（选择「专注守护」）") }
-                        Text("极致模式使用系统屏幕固定：开始专注时会弹出系统确认框，长按返回键即可退出。", style = MaterialTheme.typography.bodySmall)
+                        Text("极致模式使用系统屏幕固定：开始专注时会弹出系统确认框；确认后直到计时结束都无法退出（长按返回会被重新固定）。", style = MaterialTheme.typography.bodySmall)
                     }
                     item {
                         Text("白名单应用", style = MaterialTheme.typography.titleMedium)
