@@ -186,3 +186,8 @@
 
 ## Bugfix（2026-09-12，1.4.2 / versionCode 21）
 - 白噪音切换导致崩溃退出（屏幕固定随之失效）的防御修复：WAV 首次生成移出主线程；服务与 UI 侧全部白噪音操作 runCatching 兜底——即使系统在屏幕固定等状态下拒绝前台服务，也只静默失败不中断专注。若真机仍复现，需 adb logcat -b crash 定位具体栈。
+
+## Bugfix（2026-09-14，1.4.3/1.4.4 / versionCode 22-23）
+- 白噪音崩溃根因（真机 logcat 实锤）：ForegroundServiceDidNotStartInTimeException——startForegroundService 的 5 秒前台契约未被满足。修复：WhiteNoiseService 在 onStartCommand 同步 startForeground（mediaPlayback 类型通知），WAV 生成与播放准备随后进行；停止时移除前台通知。
+- 专注页顶栏文案此前硬编码"普通专注"，无论选何种模式都显示同一标题造成"没切换成功"的误解；现随实际模式显示（准备页=所选模式，运行页=会话模式），标签函数移入 core 共用。
+- 1.4.4 已真机安装验证入口。

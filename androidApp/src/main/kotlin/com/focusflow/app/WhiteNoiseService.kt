@@ -1,5 +1,7 @@
 package com.focusflow.app
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import androidx.media3.common.AudioAttributes
@@ -33,8 +35,21 @@ class WhiteNoiseService : MediaSessionService() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> intent.getStringExtra(EXTRA_KIND)?.let { kindName ->
-                start(WhiteNoiseKind.valueOf(kindName))
+            ACTION_START -> {
+                // 立即满足 startForegroundService 的 5 秒契约：同步进前台，不等 WAV 生成与播放准备
+                runCatching {
+                    val manager = getSystemService(NotificationManager::class.java)
+                    manager.createNotificationChannel(NotificationChannel(CHANNEL, "白噪音", NotificationManager.IMPORTANCE_LOW))
+                    val notice = android.app.Notification.Builder(this, CHANNEL)
+                        .setSmallIcon(R.drawable.ic_notification).setContentTitle("白噪音播放中")
+                        .setOngoing(true).build()
+                    if (android.os.Build.VERSION.SDK_INT >= 29)
+                        startForeground(NOTICE_ID, notice, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                    else startForeground(NOTICE_ID, notice)
+                }
+                intent.getStringExtra(EXTRA_KIND)?.let { kindName ->
+                    start(WhiteNoiseKind.valueOf(kindName))
+                }
             }
             ACTION_STOP -> stop()
         }
@@ -67,6 +82,7 @@ class WhiteNoiseService : MediaSessionService() {
     fun stop() {
         runCatching {
             player?.stop()
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
     }
@@ -88,6 +104,8 @@ class WhiteNoiseService : MediaSessionService() {
 
     companion object {
         @Volatile var instance: WhiteNoiseService? = null
+        private const val CHANNEL = "white_noise"
+        private const val NOTICE_ID = 4102
         private const val ACTION_START = "com.focusflow.app.NOISE_START"
         private const val ACTION_STOP = "com.focusflow.app.NOISE_STOP"
         private const val EXTRA_KIND = "kind"

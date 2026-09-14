@@ -37,3 +37,7 @@ fun guardStrength(requested: FocusMode, capabilities: GuardCapabilities): GuardS
     }
     return GuardStrength(requested, effective, missing)
 }
+
+fun focusModeLabel(mode: FocusMode): String = when (mode) {
+    FocusMode.NORMAL -> "普通"; FocusMode.SOFT -> "软性"; FocusMode.STRICT -> "严格"; FocusMode.EXTREME -> "极致"
+}

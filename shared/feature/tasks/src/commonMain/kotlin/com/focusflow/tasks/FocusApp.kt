@@ -345,10 +345,6 @@ fun FocusApp(
     }
 }
 
-val focusModeLabel: (FocusMode) -> String = {
-    when (it) { FocusMode.NORMAL -> "普通"; FocusMode.SOFT -> "软性"; FocusMode.STRICT -> "严格"; FocusMode.EXTREME -> "极致" }
-}
-
 fun priorityLabel(priority: Priority): String = when (priority) {
     Priority.NONE -> "无优先级"; Priority.LOW -> "低优先级"; Priority.MEDIUM -> "中优先级"; Priority.HIGH -> "高优先级"
 }

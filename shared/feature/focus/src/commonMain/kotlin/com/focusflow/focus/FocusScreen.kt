@@ -102,7 +102,7 @@ fun FocusScreen(
                         val extremeRunning = state.run?.let { it.session.strictMode == FocusMode.EXTREME && (it.anchor.state == TimerState.FOCUSING || it.anchor.state == TimerState.PAUSED) } == true
                         if (!extremeRunning) TextButton(onClick = onBack) { Text("返回任务") }
                         Spacer(Modifier.weight(1f))
-                        Text("普通专注", color = theme.secondary)
+                        Text("${focusModeLabel(state.run?.session?.strictMode ?: selectedMode)}专注", color = theme.secondary, style = MaterialTheme.typography.labelLarge)
                     }
                     Text(quote, color = theme.secondary, style = MaterialTheme.typography.bodyMedium)
                     if (!state.loaded) CircularProgressIndicator()
