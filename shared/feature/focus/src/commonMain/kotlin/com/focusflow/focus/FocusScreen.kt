@@ -64,6 +64,13 @@ fun FocusScreen(
             onGuardFocusEnded?.invoke()
         }
     }
+    // 守卫随会话状态驱动而非仅按钮回调：自动下一轮（休息结束）与进程恢复后同样应用严格/极致守护
+    LaunchedEffect(state.run?.session?.id, state.run?.anchor?.state == TimerState.FOCUSING) {
+        val run = state.run ?: return@LaunchedEffect
+        if (run.anchor.state == TimerState.FOCUSING && run.session.strictMode != FocusMode.NORMAL) {
+            onGuardModeApplied?.invoke(run.session.strictMode)
+        }
+    }
     var announcedCompletion by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(run?.session?.id, run?.anchor?.state) {
         val activeRun = run

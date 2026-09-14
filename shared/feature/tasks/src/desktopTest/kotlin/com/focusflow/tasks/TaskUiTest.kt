@@ -52,11 +52,12 @@ class TaskUiTest {
         guardCapabilities: (() -> com.focusflow.core.GuardCapabilities?)? = null,
         onOpenGuardSetup: (() -> Unit)? = null,
         onEnableReminders: (() -> Unit)? = null,
+        onGuardModeApplied: ((com.focusflow.core.FocusMode) -> Unit)? = null,
     ) {
         compose.setContent {
             CompositionLocalProvider(LocalLifecycleOwner provides owner) {
                 Box(Modifier.requiredSize(width.dp, height.dp)) {
-                    FocusApp(model, focus, sync, onEnableReminders, guardCapabilities, onOpenGuardSetup)
+                    FocusApp(model, focus, sync, onEnableReminders, guardCapabilities, onOpenGuardSetup, onGuardModeApplied)
                 }
             }
         }
@@ -251,5 +252,25 @@ class TaskUiTest {
         compose.onNodeWithText("返回").performClick()
         compose.onNodeWithText("专注防护").performClick()
         compose.onNodeWithText("专注防护设置").assertExists()
+    }
+
+    @Test fun extremeRoundDrivesGuardFromSessionState() {
+        var appliedExtreme = 0
+        show(
+            guardCapabilities = { com.focusflow.core.GuardCapabilities(accessibilityGranted = true, usageAccessGranted = true, screenPinningAvailable = true) },
+            onGuardModeApplied = { if (it == com.focusflow.core.FocusMode.EXTREME) appliedExtreme++ },
+        )
+        runBlocking {
+            repository.saveTask(com.focusflow.core.TaskDraft(
+                title = "Extreme round", targetFocusMinutes = 25,
+                preferredFocusMode = com.focusflow.core.FocusMode.EXTREME))
+        }
+        compose.waitUntil(10000) { model.state.value.data.tasks.size == 1 }
+        val task = model.state.value.data.tasks.single()
+        compose.onNodeWithText("任务").performClick()
+        compose.onNodeWithTag("quick_focus_${task.id}").performClick()
+        compose.waitUntil(10000) { focus.state.value.run?.session?.strictMode == com.focusflow.core.FocusMode.EXTREME }
+        // 守护由会话状态驱动应用（同一驱动覆盖休息后的自动下一轮与进程恢复）
+        compose.waitUntil(10000) { appliedExtreme >= 1 }
     }
 }
