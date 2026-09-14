@@ -10,8 +10,8 @@ android {
         applicationId = "com.focusflow.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 17
-        versionName = "1.2.0"
+        versionCode = 18
+        versionName = "1.3.0"
     }
     buildFeatures { compose = true }
     compileOptions {

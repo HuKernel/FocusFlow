@@ -74,9 +74,11 @@ fun FocusScreen(
                 Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(FocusSpacing.large),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = onBack) { Text("返回任务") }
+                        // 极致模式运行中不提供离开入口：只能等计时结束或系统长按返回退出固定
+                        val extremeRunning = state.run?.let { it.session.strictMode == FocusMode.EXTREME && (it.anchor.state == TimerState.FOCUSING || it.anchor.state == TimerState.PAUSED) } == true
+                        if (!extremeRunning) TextButton(onClick = onBack) { Text("返回任务") }
                         Spacer(Modifier.weight(1f))
-                        Text("普通专注", color = FocusColors.Primary)
+                        Text("普通专注", color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f))
                     }
                     Text(quote, color = if (prefs.focusBackground == FocusBackground.PLAIN) androidx.compose.ui.graphics.Color(0xFF1B2437).copy(alpha = 0.8f) else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f), style = MaterialTheme.typography.bodyMedium)
                     if (!state.loaded) CircularProgressIndicator()
@@ -158,7 +160,8 @@ fun FocusScreen(
                                 val display = if (!running && !breaking) run.session.actualDuration else if (stopwatch) state.elapsed / 1000 * 1000 else state.remaining
                                 TimerRing(display,
                                     if (stopwatch) 1f else state.elapsed.toFloat() / run.anchor.plannedDuration.coerceAtLeast(1),
-                                    when (phase) { TimerState.PAUSED -> "已暂停"; TimerState.BREAKING -> "休息中"; TimerState.FOCUSING -> if (stopwatch) "已专注" else "剩余时间"; else -> "本轮已结束" })
+                                    when (phase) { TimerState.PAUSED -> "已暂停"; TimerState.BREAKING -> "休息中"; TimerState.FOCUSING -> if (stopwatch) "已专注" else "剩余时间"; else -> "本轮已结束" },
+                                    lightContent = prefs.focusBackground == FocusBackground.PLAIN)
                                 if (run.recoveredWithWallClock) Text("设备重启后的时长按系统时间估算。", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
                         if (noise != null && running) Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                             listOf(WhiteNoiseKind.SILENCE to "无声", WhiteNoiseKind.RAIN to "雨声", WhiteNoiseKind.WIND to "风声").forEach { (kind, label) ->

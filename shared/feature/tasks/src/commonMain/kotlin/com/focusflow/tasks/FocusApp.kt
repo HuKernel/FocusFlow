@@ -2,8 +2,10 @@ package com.focusflow.tasks
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -15,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -427,24 +430,36 @@ private fun TaskCard(task: Task, state: TasksState, millis: Long, modifier: Modi
     val done = task.status == TaskStatus.DONE
     val titleColor by animateColorAsState(if (done) FocusColors.Muted else MaterialTheme.colorScheme.onSurface,
         tween(FocusMotion.duration(prefs.reducedMotion, FocusMotion.fast), easing = FocusMotion.easing), label = "task_title")
-    Card(onClick = onOpen, modifier = modifier.fillMaxWidth().testTag("task_${task.id}"), shape = FocusShapes.card,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Row(Modifier.padding(vertical = FocusSpacing.small, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Card(onClick = onOpen, modifier = modifier.fillMaxWidth().testTag("task_${task.id}").border(1.dp, MaterialTheme.colorScheme.outline, FocusShapes.card),
+        shape = FocusShapes.card, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Row(Modifier.padding(FocusSpacing.medium), verticalAlignment = Alignment.CenterVertically) {
             Checkbox(done, {
                 onComplete(it)
                 if (it) { feedback.play(SoundEvent.TASK_COMPLETE); feedback.perform(HapticEvent.SUCCESS) }
                 else feedback.perform(HapticEvent.SELECTION)
             }, enabled = !state.busy, modifier = Modifier.testTag("complete_${task.id}").semantics { contentDescription = "完成任务：${task.title}" })
-            Column(Modifier.weight(1f).padding(end = FocusSpacing.medium), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(task.title, fontWeight = FontWeight.SemiBold, color = titleColor, textDecoration = if (done) TextDecoration.LineThrough else null)
-                Text(listOfNotNull(state.data.projects.find { it.id == task.projectId }?.name, task.plannedDate, if (task.priority != Priority.NONE) priorityLabel(task.priority) else null).joinToString(" · "),
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (task.priority != Priority.NONE) Box(Modifier.size(7.dp).background(
+                        when (task.priority) { Priority.HIGH -> FocusColors.PriorityHigh; Priority.MEDIUM -> FocusColors.PriorityMedium; else -> FocusColors.PriorityLow },
+                        androidx.compose.foundation.shape.CircleShape))
+                    Text(task.title, fontWeight = FontWeight.SemiBold, color = titleColor, textDecoration = if (done) TextDecoration.LineThrough else null)
+                }
+                Text(listOfNotNull(state.data.projects.find { it.id == task.projectId }?.name, task.plannedStartTime, task.plannedDate).joinToString(" · "),
                     color = FocusColors.Muted, style = MaterialTheme.typography.labelMedium)
-                Text("${millis / 60000} / ${task.targetFocusMinutes} 分钟", color = FocusColors.Muted, style = MaterialTheme.typography.labelMedium)
-                if (task.targetFocusMinutes > 0) LinearProgressIndicator(progress = { (millis.toFloat() / (task.targetFocusMinutes * 60000L)).coerceIn(0f, 1f) }, Modifier.fillMaxWidth())
+                if (task.targetFocusMinutes > 0) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                        LinearProgressIndicator(progress = { (millis.toFloat() / (task.targetFocusMinutes * 60000L)).coerceIn(0f, 1f) },
+                            Modifier.weight(1f).height(5.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp)),
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant)
+                        Text("${millis / 60000}/${task.targetFocusMinutes}分", color = FocusColors.Muted, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
                 val names = state.data.links.filter { it.taskId == task.id }.mapNotNull { link -> state.data.tags.find { it.id == link.tagId }?.name }
                 if (names.isNotEmpty()) Text(names.joinToString("  ") { "#$it" }, color = FocusColors.Primary, style = MaterialTheme.typography.labelMedium)
                 if (task.status == TaskStatus.TODO || task.status == TaskStatus.IN_PROGRESS) Button(onClick = onStart,
-                    modifier = Modifier.testTag("quick_focus_${task.id}")) { Text("开始专注") }
+                    modifier = Modifier.testTag("quick_focus_${task.id}").height(38.dp), shape = FocusShapes.button,
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = FocusSpacing.large)) { Text("开始专注") }
             }
         }
     }

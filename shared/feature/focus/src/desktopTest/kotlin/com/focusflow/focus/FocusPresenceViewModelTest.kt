@@ -118,6 +118,25 @@ class FocusPresenceViewModelTest {
             "released session must not settle on the old owner")
     }
 
+    @Test fun breakAutoStartsNextRoundWhileSkipBreakDoesNot() = kotlinx.coroutines.runBlocking {
+        val taskId = phone.tasks.saveTask(TaskDraft("Cycle"))
+        phone.model.start(taskId, 60_000, TimerType.COUNTDOWN)
+        awaitRun(phone.model)
+        phone.clock.time += 60_000
+        phone.model.refresh()
+        kotlinx.coroutines.withTimeout(5000) { phone.model.state.first { it.run?.anchor?.state == TimerState.FOCUS_COMPLETED } }
+        phone.model.startBreak(phone.model.state.value.run!!.session.id)
+        kotlinx.coroutines.withTimeout(5000) { phone.model.state.first { it.run?.anchor?.state == TimerState.BREAKING } }
+        val firstSession = phone.model.state.value.run!!.session.id
+        // 休息自然结束：自动开始下一轮（新 sessionId，同一任务）
+        phone.clock.time += 5 * 60_000
+        phone.model.refresh()
+        kotlinx.coroutines.withTimeout(5000) {
+            phone.model.state.first { it.run != null && it.run!!.session.id != firstSession && it.run!!.anchor.state == TimerState.FOCUSING }
+        }
+        assertEquals(taskId, phone.model.state.value.run!!.session.taskId)
+    }
+
     @Test fun ownerCompleteReportsTerminalKind() = kotlinx.coroutines.runBlocking {
         val taskId = phone.tasks.saveTask(TaskDraft("Stopwatch"))
         phone.model.start(taskId, 0, TimerType.STOPWATCH)

@@ -2,6 +2,9 @@ package com.focusflow.designsystem
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -9,14 +12,36 @@ import androidx.compose.ui.unit.dp
 
 object FocusColors {
     val Primary = Color(0xFF686DFA)
-    val Background = Color(0xFFF6F7FD)
+    val PrimaryDeep = Color(0xFF4F54D9)
+    val Background = Color(0xFFF4F5FC)
     val Ink = Color(0xFF1B2437)
     val Muted = Color(0xFF7C879F)
     val Success = Color(0xFF28B47A)
+    val Warning = Color(0xFFE8912D)
+    val CardBorder = Color(0xFFE5E8F5)
+    val PriorityHigh = Color(0xFFE85D5D)
+    val PriorityMedium = Color(0xFFE8912D)
+    val PriorityLow = Color(0xFF5B8DEF)
 }
 object FocusSpacing { val small = 8.dp; val medium = 16.dp; val large = 24.dp; val page = 32.dp }
-object FocusShapes { val card = RoundedCornerShape(20.dp); val button = RoundedCornerShape(16.dp) }
-val FocusTypography = Typography()
+object FocusShapes { val card = RoundedCornerShape(24.dp); val button = RoundedCornerShape(28.dp) }
+
+// 高级感三件套：大字轻字重标题、加粗强调、小标签带字距；计时数字恒用 tabular
+val FocusTypography = Typography(
+    displayLarge = TextStyle(fontWeight = FontWeight.Light, fontSize = 60.sp, letterSpacing = (-1.5).sp, fontFeatureSettings = "tnum"),
+    displayMedium = TextStyle(fontWeight = FontWeight.Light, fontSize = 46.sp, letterSpacing = (-1).sp, fontFeatureSettings = "tnum"),
+    headlineLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 28.sp, letterSpacing = (-0.5).sp),
+    headlineSmall = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 21.sp),
+    titleLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 19.sp),
+    titleMedium = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 16.sp),
+    titleSmall = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 14.sp),
+    bodyLarge = TextStyle(fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp),
+    bodyMedium = TextStyle(fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 21.sp),
+    bodySmall = TextStyle(fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 17.sp),
+    labelLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 14.sp, letterSpacing = 0.2.sp),
+    labelMedium = TextStyle(fontWeight = FontWeight.Medium, fontSize = 12.sp, letterSpacing = 0.4.sp),
+    labelSmall = TextStyle(fontWeight = FontWeight.Medium, fontSize = 11.sp, letterSpacing = 0.5.sp),
+)
 
 object FocusMotion {
     const val instant = 80
@@ -76,14 +101,20 @@ fun FocusTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -> Un
     }
     MaterialTheme(
         colorScheme = if (dark) darkColorScheme(
-            primary = FocusColors.Primary, background = Color(0xFF141826),
-            surface = Color(0xFF1C2133), onSurface = Color(0xFFE7EAF6),
-            onBackground = Color(0xFFE7EAF6), secondary = FocusColors.Success,
-            surfaceVariant = Color(0xFF272D45),
+            primary = FocusColors.Primary, onPrimary = Color.White,
+            primaryContainer = FocusColors.PrimaryDeep, onPrimaryContainer = Color.White,
+            background = Color(0xFF12162A), onBackground = Color(0xFFE7EAF6),
+            surface = Color(0xFF1B2036), onSurface = Color(0xFFE7EAF6),
+            surfaceVariant = Color(0xFF272D4A), onSurfaceVariant = Color(0xFFB9C0D9),
+            secondary = FocusColors.Success, outline = Color(0xFF394064),
+            error = Color(0xFFFF8A80),
         ) else lightColorScheme(
-            primary = FocusColors.Primary, background = FocusColors.Background,
+            primary = FocusColors.Primary, onPrimary = Color.White,
+            primaryContainer = Color(0xFFE4E5FF), onPrimaryContainer = FocusColors.PrimaryDeep,
+            background = FocusColors.Background, onBackground = FocusColors.Ink,
             surface = Color.White, onSurface = FocusColors.Ink,
-            onBackground = FocusColors.Ink, secondary = FocusColors.Success,
+            surfaceVariant = Color(0xFFEEF0FA), onSurfaceVariant = FocusColors.Muted,
+            secondary = FocusColors.Success, outline = FocusColors.CardBorder,
         ),
         typography = FocusTypography,
         shapes = Shapes(medium = FocusShapes.button, large = FocusShapes.card),

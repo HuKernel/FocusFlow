@@ -22,7 +22,11 @@ data class FocusState(
     val run: FocusRun? = null, val loaded: Boolean = false, val busy: Boolean = false,
     val elapsed: Long = 0, val remaining: Long = 0, val error: String? = null, val remindersAvailable: Boolean = false,
     val remote: RemoteFocus? = null,
+    /** 休息结束后自动开始的下一轮参数；skipBreak/取消会清除。 */
+    val autoNext: AutoNextRound? = null,
 )
+
+data class AutoNextRound(val taskId: String, val plannedDuration: Long, val type: TimerType, val mode: FocusMode)
 
 class FocusViewModel(
     private val repository: FocusRepository,
@@ -105,6 +109,17 @@ class FocusViewModel(
     }
 
     private suspend fun show(run: FocusRun?) {
+        // 休息倒计时自然结束：自动开始下一轮专注（用户点「结束休息」则不触发，skipBreak 已清除标记）
+        val state = mutable.value
+        if (run?.anchor?.state == TimerState.SESSION_FINISHED && state.autoNext != null) {
+            val next = state.autoNext
+            mutable.update { it.copy(autoNext = null) }
+            try {
+                repository.start(next.taskId, next.plannedDuration, next.type, next.mode)
+                return
+            } catch (error: CancellationException) { throw error }
+            catch (_: Exception) { /* 任务已完成或被删除：停在结束页 */ }
+        }
         mutable.update {
             it.copy(run = run, loaded = true, elapsed = run?.let(repository.engine::elapsed) ?: 0,
                 remaining = run?.let(repository.engine::remaining) ?: 0,
@@ -133,8 +148,17 @@ class FocusViewModel(
     fun resume(id: String) = change { repository.resume(id) }
     fun cancel(id: String) = change { repository.cancel(id) }
     fun complete(id: String) = change { repository.complete(id) }
-    fun startBreak(id: String) = change { repository.startBreak(id) }
-    fun skipBreak(id: String) = change { repository.skipBreak(id) }
+    fun startBreak(id: String) = change {
+        val current = state.value.run ?: throw IllegalArgumentException("本轮已结束")
+        if (current.anchor.state == TimerState.FOCUS_COMPLETED && current.session.status == SessionStatus.COMPLETED) {
+            mutable.update { it.copy(autoNext = AutoNextRound(current.session.taskId, current.anchor.plannedDuration, current.session.type, current.session.strictMode)) }
+        }
+        repository.startBreak(id)
+    }
+    fun skipBreak(id: String) = change {
+        mutable.update { it.copy(autoNext = null) } // 主动结束休息 = 不自动继续
+        repository.skipBreak(id)
+    }
     fun dismiss(id: String) = change { repository.dismiss(id) }
     fun retry() = change { refresh(restore = true) }
 }
