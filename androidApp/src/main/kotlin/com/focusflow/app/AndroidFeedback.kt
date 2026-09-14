@@ -104,7 +104,15 @@ fun androidFeedback(context: Context): FocusFeedback {
             reducedMotion = preferences.getBoolean("reduced_motion", systemReduced),
             themeMode = runCatching { com.focusflow.designsystem.ThemeMode.valueOf(preferences.getString("theme_mode", "SYSTEM")!!) }.getOrDefault(com.focusflow.designsystem.ThemeMode.SYSTEM),
             noiseVolume = preferences.getFloat("noise_volume", 0.6f),
-            focusBackground = runCatching { com.focusflow.designsystem.FocusBackground.valueOf(preferences.getString("focus_background", "OBSIDIAN")!!) }.getOrDefault(com.focusflow.designsystem.FocusBackground.OBSIDIAN),
+            // 1.4.9 起默认无背景（纸白）：老版本默认值 OBSIDIAN 一次性迁移，此后以用户选择为准
+            focusBackground = run {
+                val stored = preferences.getString("focus_background", null)
+                if (stored == null) com.focusflow.designsystem.FocusBackground.NONE
+                else if (stored == "OBSIDIAN" && !preferences.getBoolean("bg_default_migrated", false)) {
+                    preferences.edit().putBoolean("bg_default_migrated", true).apply()
+                    com.focusflow.designsystem.FocusBackground.NONE
+                } else runCatching { com.focusflow.designsystem.FocusBackground.valueOf(stored) }.getOrDefault(com.focusflow.designsystem.FocusBackground.NONE)
+            },
             customQuotes = preferences.getStringSet("custom_quotes", emptySet())?.toList() ?: emptyList(),
             customBackgroundPath = preferences.getString("custom_background_path", null),
         ),

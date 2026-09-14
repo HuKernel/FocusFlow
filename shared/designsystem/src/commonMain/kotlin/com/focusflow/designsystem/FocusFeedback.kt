@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 data class FeedbackPrefs(
     val sound: Boolean = true, val haptic: Boolean = true, val reducedMotion: Boolean = false,
     val themeMode: ThemeMode = ThemeMode.SYSTEM, val noiseVolume: Float = 0.6f,
-    val focusBackground: FocusBackground = FocusBackground.OBSIDIAN, val customQuotes: List<String> = emptyList(),
+    val focusBackground: FocusBackground = FocusBackground.NONE, val customQuotes: List<String> = emptyList(),
     val customBackgroundPath: String? = null,
 )
 

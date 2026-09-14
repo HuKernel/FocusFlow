@@ -49,6 +49,7 @@ fun FocusRoute(
     guardCapabilities: (() -> GuardCapabilities?)? = null, onOpenGuardSetup: (() -> Unit)? = null,
     onGuardModeApplied: ((FocusMode) -> Unit)? = null, onGuardFocusEnded: (() -> Unit)? = null,
     onPickCustomBackground: (() -> Unit)? = null, appVersion: String? = null,
+    onToggleLandscape: ((Boolean) -> Unit)? = null,
 ) {
     val model = viewModel { TasksViewModel(repository) }
     // 登录后重启 App 生效：presence 凭据在连接时读取，未登录时静默不连接
@@ -60,7 +61,7 @@ fun FocusRoute(
         ) }
     }
     val focus = viewModel { FocusViewModel(focusRepository, presence) }
-    FocusApp(model, focus, sync, onEnableReminders, guardCapabilities, onOpenGuardSetup, onGuardModeApplied, onGuardFocusEnded, onPickCustomBackground, appVersion)
+    FocusApp(model, focus, sync, onEnableReminders, guardCapabilities, onOpenGuardSetup, onGuardModeApplied, onGuardFocusEnded, onPickCustomBackground, appVersion, onToggleLandscape)
 }
 
 @Composable
@@ -69,6 +70,7 @@ fun FocusApp(
     guardCapabilities: (() -> GuardCapabilities?)? = null, onOpenGuardSetup: (() -> Unit)? = null,
     onGuardModeApplied: ((FocusMode) -> Unit)? = null, onGuardFocusEnded: (() -> Unit)? = null,
     onPickCustomBackground: (() -> Unit)? = null, appVersion: String? = null,
+    onToggleLandscape: ((Boolean) -> Unit)? = null,
 ) {
     val feedbackPrefs by LocalFocusFeedback.current.prefs.collectAsState()
     FocusTheme(mode = feedbackPrefs.themeMode) {
@@ -79,7 +81,7 @@ fun FocusApp(
     var requestedTask by rememberSaveable { mutableStateOf<String?>(null) }
     if (selected == Destination.FOCUS) {
         FocusScreen(focus, state.data.tasks, requestedTask, { selected = Destination.TODAY }, onEnableReminders,
-            guardCapabilities, onOpenGuardSetup, onGuardModeApplied, onGuardFocusEnded, onPickCustomBackground, appVersion)
+            guardCapabilities, onOpenGuardSetup, onGuardModeApplied, onGuardFocusEnded, onPickCustomBackground, appVersion, onToggleLandscape)
         return@FocusTheme
     }
     var filter by rememberSaveable { mutableStateOf(TaskFilter.ALL) }

@@ -42,6 +42,7 @@ fun FocusScreen(
     guardCapabilities: (() -> GuardCapabilities?)? = null, onOpenGuardSetup: (() -> Unit)? = null,
     onGuardModeApplied: ((FocusMode) -> Unit)? = null, onGuardFocusEnded: (() -> Unit)? = null,
     onPickCustomBackground: (() -> Unit)? = null, appVersion: String? = null,
+    onToggleLandscape: ((Boolean) -> Unit)? = null,
 ) {
     val state by model.state.collectAsStateWithLifecycle()
     val feedback = LocalFocusFeedback.current
@@ -55,6 +56,9 @@ fun FocusScreen(
     var breakMinutes by rememberSaveable { mutableStateOf("5") }
     var validation by rememberSaveable { mutableStateOf<String?>(null) }
     var cancelling by rememberSaveable { mutableStateOf(false) }
+    var landscapeLocked by rememberSaveable { mutableStateOf(false) }
+    // 离开专注页即归还方向控制权（横屏锁定只在专注页内可选）
+    DisposableEffect(Unit) { onDispose { if (landscapeLocked) onToggleLandscape?.invoke(false) } }
     var selectedMode by rememberSaveable(requestedTask) { mutableStateOf(requestedTask?.let { id -> tasks.firstOrNull { it.id == id }?.preferredFocusMode } ?: FocusMode.NORMAL) }
     val run = state.run
     LaunchedEffect(state.error) { if (state.error != null) feedback.play(SoundEvent.ERROR) }
@@ -110,9 +114,13 @@ fun FocusScreen(
                         val extremeRunning = state.run?.let { it.session.strictMode == FocusMode.EXTREME && (it.anchor.state == TimerState.FOCUSING || it.anchor.state == TimerState.PAUSED) } == true
                         if (!extremeRunning) TextButton(onClick = onBack) { Text("返回任务") }
                         Spacer(Modifier.weight(1f))
+                        if (onToggleLandscape != null) TextButton(onClick = {
+                            landscapeLocked = !landscapeLocked
+                            onToggleLandscape?.invoke(landscapeLocked)
+                        }) { Text(if (landscapeLocked) "竖屏" else "横屏") }
                         Text("${focusModeLabel(state.run?.session?.strictMode ?: selectedMode)}专注", color = theme.secondary, style = MaterialTheme.typography.labelLarge)
                     }
-                    Text(quote, color = theme.secondary, style = MaterialTheme.typography.bodyMedium)
+                    if (!landscape) Text(quote, color = theme.secondary, style = MaterialTheme.typography.bodyMedium)
                     if (!state.loaded) CircularProgressIndicator()
                     else AnimatedContent(run == null,
                         transitionSpec = {
@@ -259,11 +267,12 @@ fun FocusScreen(
                                 }
                             }
                         }
-                        if (landscape) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
-                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                        if (landscape) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.large, Alignment.CenterHorizontally)) {
+                            // ponytail: 横屏双栏收窄居中；此处勿加 fillMaxHeight/verticalScroll 组合（会触发无限重测，测试实证）
+                            Column(Modifier.weight(1f, fill = false).widthIn(max = 460.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
                                 if (setupStage) setupLeft() else runLeft()
                             }
-                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                            Column(Modifier.weight(1f, fill = false).widthIn(max = 460.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
                                 if (setupStage) setupRight() else runRight()
                             }
                         } else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {

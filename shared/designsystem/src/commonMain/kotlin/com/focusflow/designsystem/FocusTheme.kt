@@ -77,9 +77,10 @@ data class FocusBackgroundTheme(
 )
 
 fun focusBackgroundTheme(background: FocusBackground): FocusBackgroundTheme = when (background) {
+    // 无背景 = 干净的纸白底，深色文字；作为默认
     FocusBackground.NONE -> FocusBackgroundTheme(
-        Brush.verticalGradient(listOf(Color(0xFF0B0B10), Color(0xFF0B0B10))),
-        Color(0xFFF4F4FF), Color(0xFFB8B8D9), dark = true)
+        Brush.verticalGradient(listOf(Color(0xFFFDFDFB), Color(0xFFF3F4F6))),
+        Color(0xFF1F2430), Color(0xFF6B7280), dark = false)
     FocusBackground.OBSIDIAN -> FocusBackgroundTheme(
         Brush.verticalGradient(listOf(Color(0xFF12121C), Color(0xFF262540), Color(0xFF101018))),
         Color(0xFFF4F4FF), Color(0xFFB8B8D9), dark = true)
