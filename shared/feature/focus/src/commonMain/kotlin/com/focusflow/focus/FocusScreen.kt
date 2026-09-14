@@ -91,16 +91,17 @@ fun FocusScreen(
     Box(Modifier.fillMaxSize()) {
         if (backgroundImage != null) {
             Image(backgroundImage, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            // 遮罩保证可读性：深色主题压黑，浅色主题（暖米白）压白
+            // 遮罩保证可读性：深色主题压黑，浅色主题（暖米白）压白；遮罩不透明度以最差图片（高亮/高对比）也能读清文字为准
             Box(Modifier.fillMaxSize().background(
-                if (theme.dark) androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.50f)
-                else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.60f)))
+                if (theme.dark) androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.62f)
+                else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.72f)))
         } else Box(Modifier.fillMaxSize().background(theme.brush ?: androidx.compose.ui.graphics.Brush.verticalGradient(
             listOf(androidx.compose.ui.graphics.Color(0xFF12121C), androidx.compose.ui.graphics.Color(0xFF101018)))))
     CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides theme.content) {
     Scaffold(containerColor = androidx.compose.ui.graphics.Color.Transparent) { padding ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
             val wide = maxWidth >= 840.dp
+            val landscape = maxWidth > maxHeight
             Row(Modifier.fillMaxSize()) {
                 Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(FocusSpacing.large),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
@@ -120,63 +121,65 @@ fun FocusScreen(
                             else (fadeIn(tween(duration)) + slideInVertically(tween(duration, easing = FocusMotion.easing)) { it / 6 }) togetherWith
                                 (fadeOut(tween(duration)) + slideOutVertically(tween(duration, easing = FocusMotion.easing)) { -it / 6 })
                         }, label = "focus_stage") { setupStage ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
-                            val noise = LocalWhiteNoise.current
-                            var noiseKind by rememberSaveable { mutableStateOf(WhiteNoiseKind.SILENCE) }
-                            if (setupStage) {
-                                state.remote?.let { remote -> ObserverPanel(remote, state.busy, model::takeover) }
-                                Text("准备好，专注一件事", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                                val choices = tasks.filter { it.status == TaskStatus.TODO || it.status == TaskStatus.IN_PROGRESS }
-                                if (choices.isEmpty()) Text("请先创建一项未完成的任务。")
-                                choices.forEach { task -> FilterChip(selectedTask == task.id, { selectedTask = task.id }, label = { Text(task.title) }, modifier = Modifier.fillMaxWidth()) }
-                                Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                    FilterChip(type == TimerType.COUNTDOWN, { type = TimerType.COUNTDOWN }, label = { Text("倒计时") })
-                                    FilterChip(type == TimerType.STOPWATCH, { type = TimerType.STOPWATCH }, label = { Text("正计时") })
+                        // 拆成左右两组内容：竖屏单列顺排，横屏双栏并排（设置项在左、模式与开始按钮在右；运行时计时环在左、控制在右）
+                        val noise = LocalWhiteNoise.current
+                        var noiseKind by rememberSaveable { mutableStateOf(WhiteNoiseKind.SILENCE) }
+                        val choices = tasks.filter { it.status == TaskStatus.TODO || it.status == TaskStatus.IN_PROGRESS }
+                        @Composable fun setupLeft() {
+                            state.remote?.let { remote -> ObserverPanel(remote, state.busy, model::takeover) }
+                            Text("准备好，专注一件事", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                            if (choices.isEmpty()) Text("请先创建一项未完成的任务。")
+                            choices.forEach { task -> FilterChip(selectedTask == task.id, { selectedTask = task.id }, label = { Text(task.title) }, modifier = Modifier.fillMaxWidth()) }
+                            Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                FilterChip(type == TimerType.COUNTDOWN, { type = TimerType.COUNTDOWN }, label = { Text("倒计时") })
+                                FilterChip(type == TimerType.STOPWATCH, { type = TimerType.STOPWATCH }, label = { Text("正计时") })
+                            }
+                            if (type == TimerType.COUNTDOWN) {
+                                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                    listOf(15, 25, 45).forEach { preset -> FilterChip(minutes == "$preset", { minutes = "$preset" }, label = { Text("$preset 分钟") }) }
                                 }
-                                if (type == TimerType.COUNTDOWN) {
-                                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                        listOf(15, 25, 45).forEach { preset -> FilterChip(minutes == "$preset", { minutes = "$preset" }, label = { Text("$preset 分钟") }) }
-                                    }
-                                    OutlinedTextField(minutes, { minutes = it }, label = { Text("专注分钟（1–1440）") },
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.testTag("focus_minutes"))
-                                }
-                                OutlinedTextField(breakMinutes, { breakMinutes = it }, label = { Text("休息分钟（1–120）") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.testTag("break_minutes"))
-                                val capabilities = guardCapabilities?.invoke()
-                                if (capabilities == null) Text("普通模式可随时离开或取消，不限制其他应用。", color = theme.secondary)
-                                else {
-                                    val strength = guardStrength(selectedMode, capabilities)
-                                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                        listOf(FocusMode.NORMAL to "普通", FocusMode.SOFT to "软性", FocusMode.STRICT to "严格", FocusMode.EXTREME to "极致").forEach { (choice, label) ->
-                                            FilterChip(selectedMode == choice, { selectedMode = choice }, label = { Text(label) }, modifier = Modifier.testTag("guard_mode_${choice.name}"))
-                                        }
-                                    }
-                                    Text(when (strength.effective) {
-                                        FocusMode.NORMAL -> "当前权限下按普通模式计时：可随时离开，不限制其他应用。"
-                                        FocusMode.SOFT -> "软性模式：允许切换应用，专注结束后可查看中断记录（需使用情况访问）。"
-                                        FocusMode.STRICT -> "严格模式：离开白名单应用会收到回到专注的提醒。"
-                                        FocusMode.EXTREME -> "极致模式：使用系统屏幕固定，开始后无法退出，直到计时结束自动解锁。"
-                                    }, color = theme.secondary, style = MaterialTheme.typography.bodySmall)
-                                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                        FocusBackground.entries.forEach { bg ->
-                                            FilterChip(prefs.focusBackground == bg, {
-                                                if (bg == FocusBackground.CUSTOM) onPickCustomBackground?.invoke()
-                                                feedback.setPrefs(prefs.copy(focusBackground = bg))
-                                            }, label = { Text(bg.label) }, modifier = Modifier.testTag("bg_${bg.name}"))
-                                        }
-                                    }
-                                    if (strength.missingSteps.isNotEmpty()) {
-                                        Text("缺少：${strength.missingSteps.joinToString("、")}。开启后按 ${strength.effective.name} 模式运行。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
-                                        if (onOpenGuardSetup != null) TextButton(onClick = onOpenGuardSetup) { Text("去开启专注防护") }
+                                OutlinedTextField(minutes, { minutes = it }, label = { Text("专注分钟（1–1440）") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.testTag("focus_minutes"))
+                            }
+                            OutlinedTextField(breakMinutes, { breakMinutes = it }, label = { Text("休息分钟（1–120）") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.testTag("break_minutes"))
+                        }
+                        @Composable fun setupRight() {
+                            val capabilities = guardCapabilities?.invoke()
+                            if (capabilities == null) Text("普通模式可随时离开或取消，不限制其他应用。", color = theme.secondary)
+                            else {
+                                val strength = guardStrength(selectedMode, capabilities)
+                                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                    listOf(FocusMode.NORMAL to "普通", FocusMode.SOFT to "软性", FocusMode.STRICT to "严格", FocusMode.EXTREME to "极致").forEach { (choice, label) ->
+                                        FilterChip(selectedMode == choice, { selectedMode = choice }, label = { Text(label) }, modifier = Modifier.testTag("guard_mode_${choice.name}"))
                                     }
                                 }
-                                Text(if (state.remindersAvailable) "结束提醒已开启，系统省电时可能延后" else "结束提醒未开启，计时仍正常保存", style = MaterialTheme.typography.bodySmall)
-                                if (!state.remindersAvailable && onEnableReminders != null) OutlinedButton(onClick = onEnableReminders) { Text("开启结束提醒") }
-                                validation?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                                Button(shape = FocusShapes.button, colors = ButtonDefaults.buttonColors(
-                                    containerColor = theme.content, contentColor = if (theme.dark) androidx.compose.ui.graphics.Color(0xFF1B2437) else androidx.compose.ui.graphics.Color.White),
-                                    modifier = Modifier.testTag("start_focus").height(52.dp).padding(horizontal = FocusSpacing.large),
-                                    onClick = {
+                                Text(when (strength.effective) {
+                                    FocusMode.NORMAL -> "当前权限下按普通模式计时：可随时离开，不限制其他应用。"
+                                    FocusMode.SOFT -> "软性模式：允许切换应用，专注结束后可查看中断记录（需使用情况访问）。"
+                                    FocusMode.STRICT -> "严格模式：离开白名单应用会收到回到专注的提醒。"
+                                    FocusMode.EXTREME -> "极致模式：使用系统屏幕固定，开始后无法退出，直到计时结束自动解锁。"
+                                }, color = theme.secondary, style = MaterialTheme.typography.bodySmall)
+                                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                    FocusBackground.entries.forEach { bg ->
+                                        FilterChip(prefs.focusBackground == bg, {
+                                            if (bg == FocusBackground.CUSTOM) onPickCustomBackground?.invoke()
+                                            feedback.setPrefs(prefs.copy(focusBackground = bg))
+                                        }, label = { Text(bg.label) }, modifier = Modifier.testTag("bg_${bg.name}"))
+                                    }
+                                }
+                                if (strength.missingSteps.isNotEmpty()) {
+                                    Text("缺少：${strength.missingSteps.joinToString("、")}。开启后按 ${strength.effective.name} 模式运行。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
+                                    if (onOpenGuardSetup != null) TextButton(onClick = onOpenGuardSetup) { Text("去开启专注防护") }
+                                }
+                            }
+                            Text(if (state.remindersAvailable) "结束提醒已开启，系统省电时可能延后" else "结束提醒未开启，计时仍正常保存", style = MaterialTheme.typography.bodySmall)
+                            if (!state.remindersAvailable && onEnableReminders != null) OutlinedButton(onClick = onEnableReminders) { Text("开启结束提醒") }
+                            validation?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                            Button(shape = FocusShapes.button, colors = ButtonDefaults.buttonColors(
+                                containerColor = theme.content, contentColor = if (theme.dark) androidx.compose.ui.graphics.Color(0xFF1B2437) else androidx.compose.ui.graphics.Color.White),
+                                modifier = Modifier.testTag("start_focus").height(52.dp).padding(horizontal = FocusSpacing.large),
+                                onClick = {
                                     val duration = minutes.toLongOrNull()
                                     val breakDuration = breakMinutes.toLongOrNull()
                                     if (type == TimerType.COUNTDOWN && (duration == null || duration !in 1L..1440L)) validation = "请输入 1–1440 之间的整数分钟"
@@ -191,68 +194,85 @@ fun FocusScreen(
                                         }
                                     }
                                 }, enabled = !state.busy && choices.any { it.id == selectedTask }) { Text("开始专注", style = MaterialTheme.typography.labelLarge) }
-                            } else if (run != null) {
-                                val phase = run.anchor.state
-                                val running = phase == TimerState.FOCUSING || phase == TimerState.PAUSED
-                                val breaking = phase == TimerState.BREAKING
-                                val extreme = run.session.strictMode == FocusMode.EXTREME
-                                Text(run.taskTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                                val stopwatch = run.session.type == TimerType.STOPWATCH && !breaking
-                                val display = if (!running && !breaking) run.session.actualDuration else if (stopwatch) state.elapsed / 1000 * 1000 else state.remaining
-                                TimerRing(display,
-                                    if (stopwatch) 1f else state.elapsed.toFloat() / run.anchor.plannedDuration.coerceAtLeast(1),
-                                    when (phase) { TimerState.PAUSED -> "已暂停"; TimerState.BREAKING -> "休息中"; TimerState.FOCUSING -> if (stopwatch) "已专注" else "剩余时间"; else -> "本轮已结束" },
-                                    lightContent = !theme.dark)
-                                if (run.recoveredWithWallClock) Text("设备重启后的时长按系统时间估算。", style = MaterialTheme.typography.bodySmall, color = theme.secondary)
-                        if (noise != null) Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                            listOf(WhiteNoiseKind.SILENCE to "无声", WhiteNoiseKind.RAIN to "雨声", WhiteNoiseKind.WIND to "风声").forEach { (kind, label) ->
-                                FilterChip(noiseKind == kind, {
-                                    noiseKind = kind
-                                    if (kind == WhiteNoiseKind.SILENCE) noise.stop() else noise.start(kind)
-                                }, label = { Text(label) })
-                            }
                         }
-                                when {
-                                    running -> {
-                                        if (extreme) {
-                                            Text("极致模式不提供暂停，也无法中途退出：长按返回等系统退出会在 1 秒内被重新固定，请等计时结束。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
-                                        } else Button(onClick = {
-                                            if (phase == TimerState.PAUSED) { feedback.play(SoundEvent.FOCUS_RESUME); model.resume(run.session.id) }
-                                            else { feedback.play(SoundEvent.FOCUS_PAUSE); model.pause(run.session.id) }
-                                            feedback.perform(HapticEvent.TAP)
-                                        }, enabled = !state.busy, modifier = Modifier.testTag("pause_resume")) {
-                                            Crossfade(phase == TimerState.PAUSED, animationSpec = tween(FocusMotion.duration(prefs.reducedMotion, FocusMotion.fast)), label = "pause_morph") { paused ->
-                                                Row {
-                                                    if (paused) { Icon(Icons.Filled.PlayArrow, null); Spacer(Modifier.width(FocusSpacing.small)); Text("继续专注") }
-                                                    else { Icon(Icons.Filled.Pause, null); Spacer(Modifier.width(FocusSpacing.small)); Text("暂停") }
-                                                }
-                                            }
-                                        }
-                                        if (stopwatch) Button(onClick = { model.complete(run.session.id) },
-                                            enabled = !state.busy, modifier = Modifier.testTag("complete_focus")) { Text("完成专注") }
-                                        if (!extreme) OutlinedButton(onClick = { cancelling = true }, enabled = !state.busy) { Text("取消本次专注") }
-                                        else Text("极致模式不支持中途取消：请等待计时结束（正计时请点「完成专注」）；计时结束前无法退出，长按返回也会被重新固定。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
-                                    }
-                                    breaking -> {
-                                        Text("休息中：现在可以自由使用手机，休息结束会自动开始下一轮专注；时间不会计入任务进度。")
-                                        OutlinedButton(onClick = { model.skipBreak(run.session.id) }, enabled = !state.busy) { Text("结束休息") }
-                                    }
-                                    else -> {
-                                        val celebrated = phase == TimerState.FOCUS_COMPLETED
-                                        val scale by animateFloatAsState(if (celebrated) 1f else 0.92f,
-                                            if (prefs.reducedMotion) tween(0) else spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow), label = "celebration")
-                                        Text(if (phase == TimerState.CANCELLED) "已取消，本轮不计入专注进度" else "专注已完成，记录 ${timerText(run.session.actualDuration)}",
-                                            color = FocusColors.Primary, modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale })
-                                        if (celebrated) Button(onClick = { feedback.play(SoundEvent.BREAK_START); model.startBreak(run.session.id) }, enabled = !state.busy) { Text("休息 ${run.breakDuration / 60_000} 分钟") }
-                                        OutlinedButton(onClick = { onGuardFocusEnded?.invoke(); model.dismiss(run.session.id) }, enabled = !state.busy, modifier = Modifier.testTag("dismiss_focus")) { Text("结束本轮") }
-                                    }
+                        @Composable fun runLeft() {
+                            val active = run ?: return
+                            Text(active.taskTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                            val phase = active.anchor.state
+                            val breaking = phase == TimerState.BREAKING
+                            val stopwatch = active.session.type == TimerType.STOPWATCH && !breaking
+                            val running = phase == TimerState.FOCUSING || phase == TimerState.PAUSED
+                            val display = if (!running && !breaking) active.session.actualDuration else if (stopwatch) state.elapsed / 1000 * 1000 else state.remaining
+                            TimerRing(display,
+                                if (stopwatch) 1f else state.elapsed.toFloat() / active.anchor.plannedDuration.coerceAtLeast(1),
+                                when (phase) { TimerState.PAUSED -> "已暂停"; TimerState.BREAKING -> "休息中"; TimerState.FOCUSING -> if (stopwatch) "已专注" else "剩余时间"; else -> "本轮已结束" },
+                                lightContent = !theme.dark)
+                            if (active.recoveredWithWallClock) Text("设备重启后的时长按系统时间估算。", style = MaterialTheme.typography.bodySmall, color = theme.secondary)
+                        }
+                        @Composable fun runRight() {
+                            val active = run ?: return
+                            val phase = active.anchor.state
+                            val running = phase == TimerState.FOCUSING || phase == TimerState.PAUSED
+                            val extreme = active.session.strictMode == FocusMode.EXTREME
+                            val stopwatch = active.session.type == TimerType.STOPWATCH && phase != TimerState.BREAKING
+                            if (noise != null) Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                listOf(WhiteNoiseKind.SILENCE to "无声", WhiteNoiseKind.RAIN to "雨声", WhiteNoiseKind.WIND to "风声").forEach { (kind, label) ->
+                                    FilterChip(noiseKind == kind, {
+                                        noiseKind = kind
+                                        if (kind == WhiteNoiseKind.SILENCE) noise.stop() else noise.start(kind)
+                                    }, label = { Text(label) })
                                 }
                             }
+                            when {
+                                running -> {
+                                    if (extreme) {
+                                        Text("极致模式不提供暂停，也无法中途退出：长按返回等系统退出会在 1 秒内被重新固定，请等计时结束。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
+                                    } else Button(onClick = {
+                                        if (phase == TimerState.PAUSED) { feedback.play(SoundEvent.FOCUS_RESUME); model.resume(active.session.id) }
+                                        else { feedback.play(SoundEvent.FOCUS_PAUSE); model.pause(active.session.id) }
+                                        feedback.perform(HapticEvent.TAP)
+                                    }, enabled = !state.busy, modifier = Modifier.testTag("pause_resume")) {
+                                        Crossfade(phase == TimerState.PAUSED, animationSpec = tween(FocusMotion.duration(prefs.reducedMotion, FocusMotion.fast)), label = "pause_morph") { paused ->
+                                            Row {
+                                                if (paused) { Icon(Icons.Filled.PlayArrow, null); Spacer(Modifier.width(FocusSpacing.small)); Text("继续专注") }
+                                                else { Icon(Icons.Filled.Pause, null); Spacer(Modifier.width(FocusSpacing.small)); Text("暂停") }
+                                            }
+                                        }
+                                    }
+                                    if (stopwatch) Button(onClick = { model.complete(active.session.id) },
+                                        enabled = !state.busy, modifier = Modifier.testTag("complete_focus")) { Text("完成专注") }
+                                    if (!extreme) OutlinedButton(onClick = { cancelling = true }, enabled = !state.busy) { Text("取消本次专注") }
+                                    else Text("极致模式不支持中途取消：请等待计时结束（正计时请点「完成专注」）；计时结束前无法退出，长按返回也会被重新固定。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
+                                }
+                                phase == TimerState.BREAKING -> {
+                                    Text("休息中：现在可以自由使用手机，休息结束会自动开始下一轮专注；时间不会计入任务进度。")
+                                    OutlinedButton(onClick = { model.skipBreak(active.session.id) }, enabled = !state.busy) { Text("结束休息") }
+                                }
+                                else -> {
+                                    val celebrated = phase == TimerState.FOCUS_COMPLETED
+                                    val scale by animateFloatAsState(if (celebrated) 1f else 0.92f,
+                                        if (prefs.reducedMotion) tween(0) else spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow), label = "celebration")
+                                    Text(if (phase == TimerState.CANCELLED) "已取消，本轮不计入专注进度" else "专注已完成，记录 ${timerText(active.session.actualDuration)}",
+                                        color = FocusColors.Primary, modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale })
+                                    if (celebrated) Button(onClick = { feedback.play(SoundEvent.BREAK_START); model.startBreak(active.session.id) }, enabled = !state.busy) { Text("休息 ${active.breakDuration / 60_000} 分钟") }
+                                    OutlinedButton(onClick = { onGuardFocusEnded?.invoke(); model.dismiss(active.session.id) }, enabled = !state.busy, modifier = Modifier.testTag("dismiss_focus")) { Text("结束本轮") }
+                                }
+                            }
+                        }
+                        if (landscape) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                                if (setupStage) setupLeft() else runLeft()
+                            }
+                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                                if (setupStage) setupRight() else runRight()
+                            }
+                        } else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                            if (setupStage) { setupLeft(); setupRight() } else { runLeft(); runRight() }
                         }
                     }
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error); TextButton(onClick = model::retry) { Text("重试恢复") } }
                 }
-                if (wide) Surface(Modifier.width(260.dp).fillMaxHeight().testTag("focus_side_pane")) {
+                if (wide && !landscape) Surface(Modifier.width(260.dp).fillMaxHeight().testTag("focus_side_pane")) {
                     val activeRun = run
                     Column(Modifier.padding(FocusSpacing.large), verticalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
                         Text("本轮进度", style = MaterialTheme.typography.titleMedium)

@@ -66,7 +66,7 @@ enum class WhiteNoiseKind { RAIN, WIND, SILENCE }
  * CUSTOM 为用户从相册选择的自定义图片（平台层注入 ImageBitmap，加深色遮罩保证可读性）。
  */
 enum class FocusBackground(val label: String) {
-    OBSIDIAN("曜石"), MIDNIGHT("午夜蓝"), ROSE("玫瑰暮光"), TEAL("青黛"), WARM("暖米白"), CUSTOM("自定义")
+    NONE("无背景"), OBSIDIAN("曜石"), MIDNIGHT("午夜蓝"), ROSE("玫瑰暮光"), TEAL("青黛"), WARM("暖米白"), CUSTOM("自定义")
 }
 
 data class FocusBackgroundTheme(
@@ -77,6 +77,9 @@ data class FocusBackgroundTheme(
 )
 
 fun focusBackgroundTheme(background: FocusBackground): FocusBackgroundTheme = when (background) {
+    FocusBackground.NONE -> FocusBackgroundTheme(
+        Brush.verticalGradient(listOf(Color(0xFF0B0B10), Color(0xFF0B0B10))),
+        Color(0xFFF4F4FF), Color(0xFFB8B8D9), dark = true)
     FocusBackground.OBSIDIAN -> FocusBackgroundTheme(
         Brush.verticalGradient(listOf(Color(0xFF12121C), Color(0xFF262540), Color(0xFF101018))),
         Color(0xFFF4F4FF), Color(0xFFB8B8D9), dark = true)
