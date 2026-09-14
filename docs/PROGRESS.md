@@ -204,3 +204,6 @@
 - 内置背景由纯渐变升级为照片：drawable-nodpi 内置 5 张 1080x1920 图片（picsum.photos seed focusflow-* 生成，Unsplash 免费商用图库），commonMain 经 LocalBuiltinBackgrounds 注入，无图/解码失败回退原渐变；深色主题压 50% 黑遮罩、暖米白压 60% 白遮罩保证可读性。Desktop 不提供 → 仍渐变。
 - 极致模式防退出加强：专注进行中每秒校验 isInLockTaskMode，长按返回等系统退出后 1 秒内自动重新 startLockTask；全部极致模式文案（准备页/运行页/向导）同步改为"确认后直到计时结束无法退出"。平台边界不变：无法阻止强制关机/adb/系统卸载，消费级应用不做按键拦截（Play 政策）。
 - tasks/focus desktopTest 全绿；已真机升级安装。交付 APK：`artifacts/FocusFlow-1.4.6-debug.apk`。
+
+## 极致防退出提速（2026-09-14，1.4.7 / versionCode 26）
+- 失锁响应 1s → 200ms，并在 onStop（系统手势拆固定、应用被切后台的瞬间）立即重锁，双通道兜底；极致专注期间快轮询、平时 1s 空转。平台边界不变：SystemUI 手势无法拦截，只能无效化（滑出后 ~0.2s 被拉回）。

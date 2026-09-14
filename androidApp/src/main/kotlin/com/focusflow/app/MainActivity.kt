@@ -32,6 +32,19 @@ class MainActivity : ComponentActivity() {
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private var guardSetupOpen by mutableStateOf(false)
 
+    // 极致专注防退出：系统手势（长按返回/上滑长按）由 SystemUI 处理、应用无法拦截，
+    // 这里做的是"无效化"——失锁瞬间（onStop）+ 200ms 轮询双通道立即重新 startLockTask。
+    @Volatile private var extremeActive = false
+    private fun relockIfExtreme() {
+        if (extremeActive && !getSystemService(android.app.ActivityManager::class.java).isInLockTaskMode) {
+            runCatching { startLockTask() }
+        }
+    }
+    override fun onStop() {
+        super.onStop()
+        relockIfExtreme()
+    }
+
     override fun onStart() {
         super.onStart()
         // 桌面小组件随前台进入刷新；不做后台定时刷新（YAGNI，WorkManager 周期更新按需再加）
@@ -65,16 +78,16 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            // 极致专注进行中每秒校验屏幕固定：长按返回等系统退出后 1 秒内重新固定（消费级应用的极限，见 FOCUS_GUARD 文档）
+            // 极致专注进行中 200ms 快速校验屏幕固定，失锁即刻重新固定；平时 1s 空转
             val activeRun by app.focus.runs.collectAsState(initial = null)
+            LaunchedEffect(activeRun) {
+                extremeActive = activeRun != null && activeRun!!.session.strictMode == FocusMode.EXTREME &&
+                    activeRun!!.anchor.state == com.focusflow.core.TimerState.FOCUSING
+            }
             LaunchedEffect(Unit) {
                 while (true) {
-                    kotlinx.coroutines.delay(1000)
-                    if (activeRun != null && activeRun!!.session.strictMode == FocusMode.EXTREME &&
-                        activeRun!!.anchor.state == com.focusflow.core.TimerState.FOCUSING &&
-                        !getSystemService(android.app.ActivityManager::class.java).isInLockTaskMode) {
-                        runCatching { startLockTask() }
-                    }
+                    kotlinx.coroutines.delay(if (extremeActive) 200 else 1000)
+                    relockIfExtreme()
                 }
             }
             val prefs by feedback.prefs.collectAsState()
