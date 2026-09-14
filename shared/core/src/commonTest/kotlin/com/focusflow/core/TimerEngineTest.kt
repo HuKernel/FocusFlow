@@ -97,4 +97,15 @@ class TimerEngineTest {
         assertEquals(TimerState.SESSION_FINISHED, finished.anchor.state)
         assertEquals(completed.session, finished.session)
     }
+
+    @Test fun customBreakDurationDrivesBreakPhase() {
+        val started = engine.start(FocusSession("session", "user", "task", "phone", "phone",
+            plannedDuration = 60_000, startedAt = clock.epoch), "Read", breakDuration = 120_000)
+        assertEquals(120_000L, started.breakDuration)
+        clock.advance(60_000)
+        val breaking = engine.startBreak(engine.recover(started))
+        assertEquals(120_000L, breaking.anchor.plannedDuration)
+        clock.advance(120_000)
+        assertEquals(TimerState.SESSION_FINISHED, engine.recover(breaking).anchor.state)
+    }
 }

@@ -52,6 +52,7 @@ fun FocusScreen(
     var minutes by rememberSaveable(requestedTask) {
         mutableStateOf(requestedTask?.let { id -> tasks.firstOrNull { it.id == id }?.targetFocusMinutes }?.takeIf { it > 0 }?.toString() ?: "25")
     }
+    var breakMinutes by rememberSaveable { mutableStateOf("5") }
     var validation by rememberSaveable { mutableStateOf<String?>(null) }
     var cancelling by rememberSaveable { mutableStateOf(false) }
     var selectedMode by rememberSaveable(requestedTask) { mutableStateOf(requestedTask?.let { id -> tasks.firstOrNull { it.id == id }?.preferredFocusMode } ?: FocusMode.NORMAL) }
@@ -133,6 +134,8 @@ fun FocusScreen(
                                     OutlinedTextField(minutes, { minutes = it }, label = { Text("专注分钟（1–1440）") },
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.testTag("focus_minutes"))
                                 }
+                                OutlinedTextField(breakMinutes, { breakMinutes = it }, label = { Text("休息分钟（1–120）") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.testTag("break_minutes"))
                                 val capabilities = guardCapabilities?.invoke()
                                 if (capabilities == null) Text("普通模式可随时离开或取消，不限制其他应用。", color = theme.secondary)
                                 else {
@@ -169,14 +172,16 @@ fun FocusScreen(
                                     modifier = Modifier.testTag("start_focus").height(52.dp).padding(horizontal = FocusSpacing.large),
                                     onClick = {
                                     val duration = minutes.toLongOrNull()
+                                    val breakDuration = breakMinutes.toLongOrNull()
                                     if (type == TimerType.COUNTDOWN && (duration == null || duration !in 1L..1440L)) validation = "请输入 1–1440 之间的整数分钟"
+                                    else if (breakDuration == null || breakDuration !in 1L..120L) validation = "请输入 1–120 之间的休息分钟"
                                     else {
                                         validation = null
                                         selectedTask?.let {
                                             feedback.play(SoundEvent.FOCUS_START); feedback.perform(HapticEvent.START_FOCUS)
                                             val effective = guardCapabilities?.invoke()?.let { effectiveMode(selectedMode, it) } ?: FocusMode.NORMAL
                                             if (effective != FocusMode.NORMAL) onGuardModeApplied?.invoke(effective)
-                                            model.start(it, if (type == TimerType.STOPWATCH) 0 else duration!! * 60000, type, effective)
+                                            model.start(it, if (type == TimerType.STOPWATCH) 0 else duration!! * 60000, type, effective, breakDuration * 60000)
                                         }
                                     }
                                 }, enabled = !state.busy && choices.any { it.id == selectedTask }) { Text("开始专注", style = MaterialTheme.typography.labelLarge) }
@@ -193,7 +198,7 @@ fun FocusScreen(
                                     when (phase) { TimerState.PAUSED -> "已暂停"; TimerState.BREAKING -> "休息中"; TimerState.FOCUSING -> if (stopwatch) "已专注" else "剩余时间"; else -> "本轮已结束" },
                                     lightContent = !theme.dark)
                                 if (run.recoveredWithWallClock) Text("设备重启后的时长按系统时间估算。", style = MaterialTheme.typography.bodySmall, color = theme.secondary)
-                        if (noise != null && running) Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                        if (noise != null) Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                             listOf(WhiteNoiseKind.SILENCE to "无声", WhiteNoiseKind.RAIN to "雨声", WhiteNoiseKind.WIND to "风声").forEach { (kind, label) ->
                                 FilterChip(noiseKind == kind, {
                                     noiseKind = kind
@@ -232,7 +237,7 @@ fun FocusScreen(
                                             if (prefs.reducedMotion) tween(0) else spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMediumLow), label = "celebration")
                                         Text(if (phase == TimerState.CANCELLED) "已取消，本轮不计入专注进度" else "专注已完成，记录 ${timerText(run.session.actualDuration)}",
                                             color = FocusColors.Primary, modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale })
-                                        if (celebrated) Button(onClick = { feedback.play(SoundEvent.BREAK_START); model.startBreak(run.session.id) }, enabled = !state.busy) { Text("休息 5 分钟") }
+                                        if (celebrated) Button(onClick = { feedback.play(SoundEvent.BREAK_START); model.startBreak(run.session.id) }, enabled = !state.busy) { Text("休息 ${run.breakDuration / 60_000} 分钟") }
                                         OutlinedButton(onClick = { onGuardFocusEnded?.invoke(); model.dismiss(run.session.id) }, enabled = !state.busy, modifier = Modifier.testTag("dismiss_focus")) { Text("结束本轮") }
                                     }
                                 }

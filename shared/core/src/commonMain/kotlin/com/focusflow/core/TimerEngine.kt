@@ -15,10 +15,11 @@ class TimerEngine(private val clock: FocusClock) {
 
     fun remaining(run: FocusRun): Long = (run.anchor.plannedDuration - elapsed(run)).coerceAtLeast(0)
 
-    fun start(session: FocusSession, taskTitle: String): FocusRun {
+    fun start(session: FocusSession, taskTitle: String, breakDuration: Long = 5 * 60_000): FocusRun {
         require(session.plannedDuration in 1L..86_400_000L || session.type == TimerType.STOPWATCH && session.plannedDuration == 0L)
+        require(breakDuration in 1L..86_400_000L) { "休息时长需为 1 分钟到 24 小时" }
         return FocusRun(session, TimerAnchor(session.id, TimerState.FOCUSING, clock.epochMillis(),
-            clock.monotonicMillis(), session.plannedDuration), clock.bootId(), taskTitle)
+            clock.monotonicMillis(), session.plannedDuration), clock.bootId(), taskTitle, breakDuration)
     }
 
     private fun anchor(run: FocusRun, state: TimerState, elapsed: Long, paused: Long = run.anchor.pausedDuration): FocusRun =

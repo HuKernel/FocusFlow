@@ -30,7 +30,8 @@ class FocusRepositoryTest {
         try {
             val taskId = TaskRepository(db).saveTask(TaskDraft("Read"))
             var focus = FocusRepository(db, clock, alarm)
-            focus.start(taskId, 60_000)
+            focus.start(taskId, 60_000, breakDuration = 300_000)
+            assertEquals(300_000L, db.focusDao().activeFocus()!!.breakDuration)
             val id = db.focusDao().activeFocus()!!.session.id
             assertTrue(alarm.scheduled)
             assertFails { focus.start(taskId, 60_000) }

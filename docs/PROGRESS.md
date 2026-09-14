@@ -191,3 +191,10 @@
 - 白噪音崩溃根因（真机 logcat 实锤）：ForegroundServiceDidNotStartInTimeException——startForegroundService 的 5 秒前台契约未被满足。修复：WhiteNoiseService 在 onStartCommand 同步 startForeground（mediaPlayback 类型通知），WAV 生成与播放准备随后进行；停止时移除前台通知。
 - 专注页顶栏文案此前硬编码"普通专注"，无论选何种模式都显示同一标题造成"没切换成功"的误解；现随实际模式显示（准备页=所选模式，运行页=会话模式），标签函数移入 core 共用。
 - 1.4.4 已真机安装验证入口。
+
+## 休息时长自定义 + 休息期白噪音控制（2026-09-14，1.4.5 / versionCode 24）
+- 休息时长不再固定 5 分钟：准备页新增「休息分钟（1–120）」输入（默认 5），经 FocusViewModel/TimerController/TimerEngine 贯穿至 FocusRun.breakDuration 持久化（ActiveFocusEntity 已有该列，无 schema 变更）；完成页按钮文案按实际休息时长显示；番茄自动下一轮（AutoNextRound）沿用本轮自定义休息时长。
+- 修复：白噪音切换按钮只在 FOCUSING/PAUSED 显示，进入休息后声音仍在播放却无法关闭；现运行态各阶段（含休息、完成）都显示控制按钮。
+- 新增 TimerEngineTest.customBreakDurationDrivesBreakPhase 与 FocusRepositoryTest breakDuration 持久化断言；core/database/tasks/focus/sync/network desktopTest 全绿；已真机升级安装（1.4.4 → 1.4.5，android-user debug 签名）。
+- 交付 APK：`artifacts/FocusFlow-1.4.5-debug.apk`，SHA256 C0F9B65EE9DF5B48098BCBDFDA8578C0857CF43DDF5080C3764BBAC0AF68B3AA。
+- 注：E:\桌面\FocusFlow 是本仓库 1.1.0 时期的旧副本（含未提交半成品），同日亦在其中复刻了相同两项修复（该目录 1.1.1 / versionCode 16，未提交）；主线以本仓库为准。

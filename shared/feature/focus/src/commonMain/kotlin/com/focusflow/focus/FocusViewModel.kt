@@ -26,7 +26,7 @@ data class FocusState(
     val autoNext: AutoNextRound? = null,
 )
 
-data class AutoNextRound(val taskId: String, val plannedDuration: Long, val type: TimerType, val mode: FocusMode)
+data class AutoNextRound(val taskId: String, val plannedDuration: Long, val type: TimerType, val mode: FocusMode, val breakDuration: Long = 5 * 60_000)
 
 class FocusViewModel(
     private val repository: FocusRepository,
@@ -115,7 +115,7 @@ class FocusViewModel(
             val next = state.autoNext
             mutable.update { it.copy(autoNext = null) }
             try {
-                repository.start(next.taskId, next.plannedDuration, next.type, next.mode)
+                repository.start(next.taskId, next.plannedDuration, next.type, next.mode, next.breakDuration)
                 return
             } catch (error: CancellationException) { throw error }
             catch (_: Exception) { /* 任务已完成或被删除：停在结束页 */ }
@@ -143,7 +143,7 @@ class FocusViewModel(
             finally { mutable.update { it.copy(busy = false) } }
         }
     }
-    fun start(taskId: String, duration: Long, type: TimerType, mode: FocusMode = FocusMode.NORMAL) = change { repository.start(taskId, duration, type, mode) }
+    fun start(taskId: String, duration: Long, type: TimerType, mode: FocusMode = FocusMode.NORMAL, breakDuration: Long = 5 * 60_000) = change { repository.start(taskId, duration, type, mode, breakDuration) }
     fun pause(id: String) = change { repository.pause(id) }
     fun resume(id: String) = change { repository.resume(id) }
     fun cancel(id: String) = change { repository.cancel(id) }
@@ -151,7 +151,7 @@ class FocusViewModel(
     fun startBreak(id: String) = change {
         val current = state.value.run ?: throw IllegalArgumentException("本轮已结束")
         if (current.anchor.state == TimerState.FOCUS_COMPLETED && current.session.status == SessionStatus.COMPLETED) {
-            mutable.update { it.copy(autoNext = AutoNextRound(current.session.taskId, current.anchor.plannedDuration, current.session.type, current.session.strictMode)) }
+            mutable.update { it.copy(autoNext = AutoNextRound(current.session.taskId, current.anchor.plannedDuration, current.session.type, current.session.strictMode, current.breakDuration)) }
         }
         repository.startBreak(id)
     }

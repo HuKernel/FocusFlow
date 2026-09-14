@@ -30,7 +30,7 @@ class FocusRepository(
         connection.withTransaction(IMMEDIATE) { block() }
     }
 
-    override suspend fun start(taskId: String, plannedDuration: Long, type: TimerType, mode: FocusMode) = mutations.withLock {
+    override suspend fun start(taskId: String, plannedDuration: Long, type: TimerType, mode: FocusMode, breakDuration: Long) = mutations.withLock {
         val run = write {
             val existing = dao.activeFocus()?.toRun()
             require(existing == null || existing.anchor.state in listOf(TimerState.FOCUS_COMPLETED, TimerState.CANCELLED, TimerState.SESSION_FINISHED)) { "已有专注或休息正在进行，请先结束" }
@@ -40,7 +40,7 @@ class FocusRepository(
             val timestamp = clock.epochMillis()
             val session = FocusSession(newId(), task.userId, task.id, identity.deviceId, identity.deviceId,
                 type = type, plannedDuration = if (type == TimerType.STOPWATCH) 0 else plannedDuration, startedAt = timestamp, strictMode = mode)
-            val started = engine.start(session, task.title)
+            val started = engine.start(session, task.title, breakDuration)
             if (task.status == TaskStatus.TODO) {
                 val changed = task.copy(status = TaskStatus.IN_PROGRESS, updatedAt = timestamp, revision = task.revision + 1)
                 dao.upsertTask(TaskEntity(changed))

@@ -26,7 +26,7 @@ data class TimerAnchor(
 }
 
 interface TimerController {
-    suspend fun start(taskId: String, plannedDuration: Long, type: TimerType = TimerType.COUNTDOWN, mode: FocusMode = FocusMode.NORMAL)
+    suspend fun start(taskId: String, plannedDuration: Long, type: TimerType = TimerType.COUNTDOWN, mode: FocusMode = FocusMode.NORMAL, breakDuration: Long = 5 * 60_000)
     suspend fun pause(sessionId: String)
     suspend fun resume(sessionId: String)
     suspend fun cancel(sessionId: String)
