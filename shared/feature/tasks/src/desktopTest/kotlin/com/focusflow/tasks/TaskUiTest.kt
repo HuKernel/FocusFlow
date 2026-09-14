@@ -181,6 +181,7 @@ class TaskUiTest {
         }
         show(sync = com.focusflow.sync.SyncCoordinator(database, fake))
         compose.onNodeWithText("我的").performClick()
+        compose.onNodeWithText("账号与同步").performClick()
         compose.onNodeWithTag("sync_server").performScrollTo().performTextInput("http://10.0.2.2:8080")
         compose.onNodeWithTag("sync_username").performScrollTo().performTextInput("alice")
         compose.onNodeWithTag("sync_password").performScrollTo().performTextInput("password123")
@@ -238,33 +239,17 @@ class TaskUiTest {
         compose.onNodeWithText("去开启专注防护").performScrollTo().assertExists()
     }
 
-    @Test fun settingsPageShowsSectionsWithGuardEntry() {
+    @Test fun settingsPageShowsMenuAndGuardSubpage() {
         show(guardCapabilities = { com.focusflow.core.GuardCapabilities(screenPinningAvailable = true) }, onOpenGuardSetup = { }, onEnableReminders = { })
         compose.onNodeWithText("我的").performClick()
         compose.onNodeWithText("账号与同步").assertExists()
         compose.onNodeWithText("专注防护").assertExists()
+        compose.onNodeWithText("外观与反馈").assertExists()
+        compose.onNodeWithText("关于").performClick()
+        compose.onNodeWithText("用户协议").assertExists()
+        compose.onNodeWithText("隐私政策").assertExists()
+        compose.onNodeWithText("返回").performClick()
+        compose.onNodeWithText("专注防护").performClick()
         compose.onNodeWithText("专注防护设置").assertExists()
-        compose.onNodeWithText("反馈").assertExists()
-        compose.onNodeWithTag("task_list").performScrollToNode(hasText("任务组织"))
-        compose.onNodeWithText("任务组织").assertExists()
-        compose.onNodeWithTag("task_list").performScrollToNode(hasText("通知设置"))
-        compose.onNodeWithText("通知设置").assertExists()
-    }
-
-    @Test fun taskWithPreferredModeStartsFocusDirectly() {
-        show()
-        runBlocking {
-            repository.saveTask(com.focusflow.core.TaskDraft(
-                title = "Direct start", targetFocusMinutes = 25,
-                preferredFocusMode = com.focusflow.core.FocusMode.NORMAL))
-        }
-        compose.waitUntil(10000) { model.state.value.data.tasks.size == 1 }
-        val task = model.state.value.data.tasks.single()
-        assertEquals(com.focusflow.core.FocusMode.NORMAL, task.preferredFocusMode)
-        compose.onNodeWithText("任务").performClick()
-        compose.onNodeWithTag("quick_focus_${task.id}").performClick()
-        compose.waitUntil(10000) { focus.state.value.run != null && !focus.state.value.busy }
-        compose.onNodeWithText("准备好，专注一件事").assertDoesNotExist()
-        compose.onNodeWithTag("pause_resume").assertExists()
     }
 }

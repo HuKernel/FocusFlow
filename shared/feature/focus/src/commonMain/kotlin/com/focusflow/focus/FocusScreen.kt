@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -26,6 +27,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -39,6 +41,7 @@ fun FocusScreen(
     model: FocusViewModel, tasks: List<Task>, requestedTask: String?, onBack: () -> Unit, onEnableReminders: (() -> Unit)?,
     guardCapabilities: (() -> GuardCapabilities?)? = null, onOpenGuardSetup: (() -> Unit)? = null,
     onGuardModeApplied: ((FocusMode) -> Unit)? = null, onGuardFocusEnded: (() -> Unit)? = null,
+    onPickCustomBackground: (() -> Unit)? = null, appVersion: String? = null,
 ) {
     val state by model.state.collectAsStateWithLifecycle()
     val feedback = LocalFocusFeedback.current
@@ -54,6 +57,13 @@ fun FocusScreen(
     var selectedMode by rememberSaveable(requestedTask) { mutableStateOf(requestedTask?.let { id -> tasks.firstOrNull { it.id == id }?.preferredFocusMode } ?: FocusMode.NORMAL) }
     val run = state.run
     LaunchedEffect(state.error) { if (state.error != null) feedback.play(SoundEvent.ERROR) }
+    // 专注进入休息或终态即解除屏幕固定与守护：休息期间允许自由使用手机
+    LaunchedEffect(state.run?.anchor?.state) {
+        val phase = state.run?.anchor?.state
+        if (phase == TimerState.BREAKING || phase == TimerState.FOCUS_COMPLETED || phase == TimerState.CANCELLED || phase == TimerState.SESSION_FINISHED) {
+            onGuardFocusEnded?.invoke()
+        }
+    }
     var announcedCompletion by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(run?.session?.id, run?.anchor?.state) {
         val activeRun = run
@@ -62,11 +72,18 @@ fun FocusScreen(
             feedback.play(SoundEvent.FOCUS_COMPLETE); feedback.perform(HapticEvent.SUCCESS)
         }
     }
-    val background = prefs.focusBackground
+    val theme = focusBackgroundTheme(prefs.focusBackground)
+    val customBitmap = LocalCustomBackground.current
     val quote = remember(state.run?.session?.id) {
         FocusQuotes.pick(prefs.customQuotes, (state.run?.session?.startedAt ?: requestedTask?.hashCode()?.toLong() ?: System.currentTimeMillis()).coerceAtLeast(0))
     }
-    Box(Modifier.fillMaxSize().background(brushFor(background))) {
+    Box(Modifier.fillMaxSize()) {
+        if (prefs.focusBackground == FocusBackground.CUSTOM && customBitmap != null) {
+            Image(customBitmap, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f)))
+        } else Box(Modifier.fillMaxSize().background(theme.brush ?: androidx.compose.ui.graphics.Brush.verticalGradient(
+            listOf(androidx.compose.ui.graphics.Color(0xFF12121C), androidx.compose.ui.graphics.Color(0xFF101018)))))
+    CompositionLocalProvider(androidx.compose.material3.LocalContentColor provides theme.content) {
     Scaffold(containerColor = androidx.compose.ui.graphics.Color.Transparent) { padding ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
             val wide = maxWidth >= 840.dp
@@ -78,9 +95,9 @@ fun FocusScreen(
                         val extremeRunning = state.run?.let { it.session.strictMode == FocusMode.EXTREME && (it.anchor.state == TimerState.FOCUSING || it.anchor.state == TimerState.PAUSED) } == true
                         if (!extremeRunning) TextButton(onClick = onBack) { Text("返回任务") }
                         Spacer(Modifier.weight(1f))
-                        Text("普通专注", color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f))
+                        Text("普通专注", color = theme.secondary)
                     }
-                    Text(quote, color = if (prefs.focusBackground == FocusBackground.PLAIN) androidx.compose.ui.graphics.Color(0xFF1B2437).copy(alpha = 0.8f) else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f), style = MaterialTheme.typography.bodyMedium)
+                    Text(quote, color = theme.secondary, style = MaterialTheme.typography.bodyMedium)
                     if (!state.loaded) CircularProgressIndicator()
                     else AnimatedContent(run == null,
                         transitionSpec = {
@@ -110,7 +127,7 @@ fun FocusScreen(
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.testTag("focus_minutes"))
                                 }
                                 val capabilities = guardCapabilities?.invoke()
-                                if (capabilities == null) Text("普通模式可随时离开或取消，不限制其他应用。", color = FocusColors.Muted)
+                                if (capabilities == null) Text("普通模式可随时离开或取消，不限制其他应用。", color = theme.secondary)
                                 else {
                                     val strength = guardStrength(selectedMode, capabilities)
                                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
@@ -123,21 +140,27 @@ fun FocusScreen(
                                         FocusMode.SOFT -> "软性模式：允许切换应用，专注结束后可查看中断记录（需使用情况访问）。"
                                         FocusMode.STRICT -> "严格模式：离开白名单应用会收到回到专注的提醒。"
                                         FocusMode.EXTREME -> "极致模式：使用系统屏幕固定，长按返回键可退出（Emergency Exit）。"
-                                    }, color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                    }, color = theme.secondary, style = MaterialTheme.typography.bodySmall)
                                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                                         FocusBackground.entries.forEach { bg ->
-                                            FilterChip(prefs.focusBackground == bg, { feedback.setPrefs(prefs.copy(focusBackground = bg)) }, label = { Text(bg.label) })
+                                            FilterChip(prefs.focusBackground == bg, {
+                                                if (bg == FocusBackground.CUSTOM) onPickCustomBackground?.invoke()
+                                                feedback.setPrefs(prefs.copy(focusBackground = bg))
+                                            }, label = { Text(bg.label) }, modifier = Modifier.testTag("bg_${bg.name}"))
                                         }
                                     }
                                     if (strength.missingSteps.isNotEmpty()) {
-                                        Text("缺少：${strength.missingSteps.joinToString("、")}。开启后按 ${strength.effective.name} 模式运行。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                        Text("缺少：${strength.missingSteps.joinToString("、")}。开启后按 ${strength.effective.name} 模式运行。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
                                         if (onOpenGuardSetup != null) TextButton(onClick = onOpenGuardSetup) { Text("去开启专注防护") }
                                     }
                                 }
                                 Text(if (state.remindersAvailable) "结束提醒已开启，系统省电时可能延后" else "结束提醒未开启，计时仍正常保存", style = MaterialTheme.typography.bodySmall)
                                 if (!state.remindersAvailable && onEnableReminders != null) OutlinedButton(onClick = onEnableReminders) { Text("开启结束提醒") }
                                 validation?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                                Button(onClick = {
+                                Button(shape = FocusShapes.button, colors = ButtonDefaults.buttonColors(
+                                    containerColor = theme.content, contentColor = if (theme.dark) androidx.compose.ui.graphics.Color(0xFF1B2437) else androidx.compose.ui.graphics.Color.White),
+                                    modifier = Modifier.testTag("start_focus").height(52.dp).padding(horizontal = FocusSpacing.large),
+                                    onClick = {
                                     val duration = minutes.toLongOrNull()
                                     if (type == TimerType.COUNTDOWN && (duration == null || duration !in 1L..1440L)) validation = "请输入 1–1440 之间的整数分钟"
                                     else {
@@ -149,7 +172,7 @@ fun FocusScreen(
                                             model.start(it, if (type == TimerType.STOPWATCH) 0 else duration!! * 60000, type, effective)
                                         }
                                     }
-                                }, enabled = !state.busy && choices.any { it.id == selectedTask }, modifier = Modifier.testTag("start_focus")) { Text("开始专注") }
+                                }, enabled = !state.busy && choices.any { it.id == selectedTask }) { Text("开始专注", style = MaterialTheme.typography.labelLarge) }
                             } else if (run != null) {
                                 val phase = run.anchor.state
                                 val running = phase == TimerState.FOCUSING || phase == TimerState.PAUSED
@@ -161,8 +184,8 @@ fun FocusScreen(
                                 TimerRing(display,
                                     if (stopwatch) 1f else state.elapsed.toFloat() / run.anchor.plannedDuration.coerceAtLeast(1),
                                     when (phase) { TimerState.PAUSED -> "已暂停"; TimerState.BREAKING -> "休息中"; TimerState.FOCUSING -> if (stopwatch) "已专注" else "剩余时间"; else -> "本轮已结束" },
-                                    lightContent = prefs.focusBackground == FocusBackground.PLAIN)
-                                if (run.recoveredWithWallClock) Text("设备重启后的时长按系统时间估算。", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
+                                    lightContent = !theme.dark)
+                                if (run.recoveredWithWallClock) Text("设备重启后的时长按系统时间估算。", style = MaterialTheme.typography.bodySmall, color = theme.secondary)
                         if (noise != null && running) Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                             listOf(WhiteNoiseKind.SILENCE to "无声", WhiteNoiseKind.RAIN to "雨声", WhiteNoiseKind.WIND to "风声").forEach { (kind, label) ->
                                 FilterChip(noiseKind == kind, {
@@ -174,7 +197,7 @@ fun FocusScreen(
                                 when {
                                     running -> {
                                         if (extreme) {
-                                            Text("极致模式不提供暂停；如需临时离开请长按返回键退出屏幕固定（计入中断）。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                            Text("极致模式不提供暂停；如需临时离开请长按返回键退出屏幕固定（计入中断）。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
                                         } else Button(onClick = {
                                             if (phase == TimerState.PAUSED) { feedback.play(SoundEvent.FOCUS_RESUME); model.resume(run.session.id) }
                                             else { feedback.play(SoundEvent.FOCUS_PAUSE); model.pause(run.session.id) }
@@ -190,10 +213,10 @@ fun FocusScreen(
                                         if (stopwatch) Button(onClick = { model.complete(run.session.id) },
                                             enabled = !state.busy, modifier = Modifier.testTag("complete_focus")) { Text("完成专注") }
                                         if (!extreme) OutlinedButton(onClick = { cancelling = true }, enabled = !state.busy) { Text("取消本次专注") }
-                                        else Text("极致模式不支持中途取消：请等待计时结束（正计时请点「完成专注」）；紧急情况可长按返回键退出屏幕固定，但专注不会终止。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                        else Text("极致模式不支持中途取消：请等待计时结束（正计时请点「完成专注」）；紧急情况可长按返回键退出屏幕固定，但专注不会终止。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
                                     }
                                     breaking -> {
-                                        Text("专注已记录，休息时间不会计入任务进度。")
+                                        Text("休息中：现在可以自由使用手机，休息结束会自动开始下一轮专注；时间不会计入任务进度。")
                                         OutlinedButton(onClick = { model.skipBreak(run.session.id) }, enabled = !state.busy) { Text("结束休息") }
                                     }
                                     else -> {
@@ -215,19 +238,19 @@ fun FocusScreen(
                     val activeRun = run
                     Column(Modifier.padding(FocusSpacing.large), verticalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
                         Text("本轮进度", style = MaterialTheme.typography.titleMedium)
-                        if (activeRun == null) Text("开始专注后，这里显示本轮进度与设备状态。", color = FocusColors.Muted)
+                        if (activeRun == null) Text("开始专注后，这里显示本轮进度与设备状态。", color = theme.secondary)
                         else {
                             Text(activeRun.taskTitle, style = MaterialTheme.typography.titleSmall)
                             val planned = activeRun.anchor.plannedDuration
                             val done = activeRun.session.actualDuration
                             if (planned > 0) LinearProgressIndicator(progress = { (state.elapsed.toFloat() / planned).coerceIn(0f, 1f) }, Modifier.fillMaxWidth())
-                            Text(if (planned > 0) "计划 ${timerText(planned)}" else "正计时 · 不设上限", color = FocusColors.Muted)
-                            Text("暂停累计 ${timerText(activeRun.session.pausedDuration)}", color = FocusColors.Muted)
+                            Text(if (planned > 0) "计划 ${timerText(planned)}" else "正计时 · 不设上限", color = theme.secondary)
+                            Text("暂停累计 ${timerText(activeRun.session.pausedDuration)}", color = theme.secondary)
                         }
                         Text("设备", style = MaterialTheme.typography.titleSmall)
-                        Text("本机控制 · 记录保存在这台设备", color = FocusColors.Muted)
-                        Text("离开页面不会停止计时；暂停时不累计专注时长。", color = FocusColors.Muted)
-                        Text("跨设备观察与接力将在多设备阶段开启。", color = FocusColors.Muted)
+                        Text("本机控制 · 记录保存在这台设备", color = theme.secondary)
+                        Text("离开页面不会停止计时；暂停时不累计专注时长。", color = theme.secondary)
+                        Text("跨设备观察与接力将在多设备阶段开启。", color = theme.secondary)
                     }
                 }
             }
@@ -237,6 +260,7 @@ fun FocusScreen(
         text = { Text("已用时间会保存为取消记录，但不会增加任务的专注进度。") },
         confirmButton = { TextButton(onClick = { feedback.perform(HapticEvent.WARNING); model.cancel(run.session.id); cancelling = false }, enabled = !state.busy) { Text("确认取消") } },
         dismissButton = { TextButton(onClick = { cancelling = false }) { Text("继续专注") } })
+    }
     }
 }
 
@@ -252,18 +276,11 @@ fun ObserverPanel(remote: RemoteFocus, busy: Boolean, onTakeover: () -> Unit) {
                 remote.snapshot.timerState == TimerState.PAUSED -> "已暂停"
                 stopwatch -> "已专注 ${timerText(remote.elapsedMillis)}"
                 else -> "剩余 ${timerText(remote.remainingMillis)}"
-            }, color = FocusColors.Muted)
-            Text("发起设备 ${remote.snapshot.ownerDeviceId.takeLast(8)}", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
+            }, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("发起设备 ${remote.snapshot.ownerDeviceId.takeLast(8)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Button(onClick = onTakeover, enabled = !busy, modifier = Modifier.testTag("takeover_focus")) { Text("在这台设备继续") }
-            Text("接管后原设备转为观察；计时基于共享锚点估算。", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
+            Text("接管后原设备转为观察；计时基于共享锚点估算。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
-fun brushFor(bg: com.focusflow.designsystem.FocusBackground): androidx.compose.ui.graphics.Brush = when (bg) {
-    com.focusflow.designsystem.FocusBackground.AURORA -> androidx.compose.ui.graphics.Brush.verticalGradient(listOf(androidx.compose.ui.graphics.Color(0xFF3A3D8F), androidx.compose.ui.graphics.Color(0xFF686DFA), androidx.compose.ui.graphics.Color(0xFF2A2350)))
-    com.focusflow.designsystem.FocusBackground.OCEAN -> androidx.compose.ui.graphics.Brush.verticalGradient(listOf(androidx.compose.ui.graphics.Color(0xFF0F3552), androidx.compose.ui.graphics.Color(0xFF1E6E9E), androidx.compose.ui.graphics.Color(0xFF0B2437)))
-    com.focusflow.designsystem.FocusBackground.FOREST -> androidx.compose.ui.graphics.Brush.verticalGradient(listOf(androidx.compose.ui.graphics.Color(0xFF1E4D3B), androidx.compose.ui.graphics.Color(0xFF2E8B6A), androidx.compose.ui.graphics.Color(0xFF14312A)))
-    com.focusflow.designsystem.FocusBackground.DUSK -> androidx.compose.ui.graphics.Brush.verticalGradient(listOf(androidx.compose.ui.graphics.Color(0xFF5C3A2E), androidx.compose.ui.graphics.Color(0xFFC97B4A), androidx.compose.ui.graphics.Color(0xFF3A2420)))
-    com.focusflow.designsystem.FocusBackground.PLAIN -> androidx.compose.ui.graphics.Brush.verticalGradient(listOf(androidx.compose.ui.graphics.Color(0xFFF6F7FD), androidx.compose.ui.graphics.Color(0xFFE7EAF8)))
-}

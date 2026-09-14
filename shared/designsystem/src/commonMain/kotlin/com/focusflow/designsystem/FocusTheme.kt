@@ -2,12 +2,13 @@ package com.focusflow.designsystem
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 object FocusColors {
@@ -59,9 +60,40 @@ fun interface HapticController { fun perform(event: HapticEvent) }
 
 enum class WhiteNoiseKind { RAIN, WIND, SILENCE }
 
-/** 专注页预设背景：纯本地渐变，不使用图片素材、不申请任何权限。 */
+/**
+ * 专注页背景：4 个深色系 + 1 个浅色系预设，全部为本地渐变（无素材、无权限）；
+ * 每个背景自带前景色配比（主文字/次要文字/是否深底），界面元素颜色一律从背景主题派生。
+ * CUSTOM 为用户从相册选择的自定义图片（平台层注入 ImageBitmap，加深色遮罩保证可读性）。
+ */
 enum class FocusBackground(val label: String) {
-    AURORA("极光紫"), OCEAN("深海蓝"), FOREST("森林绿"), DUSK("暮色橙"), PLAIN("素雅浅色");
+    OBSIDIAN("曜石"), MIDNIGHT("午夜蓝"), ROSE("玫瑰暮光"), TEAL("青黛"), WARM("暖米白"), CUSTOM("自定义")
+}
+
+data class FocusBackgroundTheme(
+    val brush: Brush?,
+    val content: Color,      // 主文字/强调
+    val secondary: Color,    // 次要文字
+    val dark: Boolean,       // 深底（影响按钮反白、环轨道等）
+)
+
+fun focusBackgroundTheme(background: FocusBackground): FocusBackgroundTheme = when (background) {
+    FocusBackground.OBSIDIAN -> FocusBackgroundTheme(
+        Brush.verticalGradient(listOf(Color(0xFF12121C), Color(0xFF262540), Color(0xFF101018))),
+        Color(0xFFF4F4FF), Color(0xFFB8B8D9), dark = true)
+    FocusBackground.MIDNIGHT -> FocusBackgroundTheme(
+        Brush.verticalGradient(listOf(Color(0xFF0A1E3C), Color(0xFF14487E), Color(0xFF081830))),
+        Color(0xFFEAF4FF), Color(0xFFA9C4E4), dark = true)
+    FocusBackground.ROSE -> FocusBackgroundTheme(
+        Brush.verticalGradient(listOf(Color(0xFF33192E), Color(0xFF7A3B5E), Color(0xFF241220))),
+        Color(0xFFFFEAF2), Color(0xFFD9AFC2), dark = true)
+    FocusBackground.TEAL -> FocusBackgroundTheme(
+        Brush.verticalGradient(listOf(Color(0xFF0C2B2A), Color(0xFF1F6B62), Color(0xFF0A211F))),
+        Color(0xFFE8FFFA), Color(0xFFA7CFC8), dark = true)
+    FocusBackground.WARM -> FocusBackgroundTheme(
+        Brush.verticalGradient(listOf(Color(0xFFFBF8F2), Color(0xFFEDE6D8))),
+        Color(0xFF2A2A33), Color(0xFF6B6B78), dark = false)
+    FocusBackground.CUSTOM -> FocusBackgroundTheme(
+        null, Color(0xFFFFFFFF), Color(0xFFDEDEEA), dark = true) // 位图由平台层叠加，配深色遮罩
 }
 
 /** 内置专注语录；用户可在设置中追加自定义（

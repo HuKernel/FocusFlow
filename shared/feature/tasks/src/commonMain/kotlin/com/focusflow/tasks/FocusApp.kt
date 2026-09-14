@@ -48,6 +48,7 @@ fun FocusRoute(
     repository: TaskRepository, focusRepository: FocusRepository, sync: SyncCoordinator? = null, onEnableReminders: (() -> Unit)? = null,
     guardCapabilities: (() -> GuardCapabilities?)? = null, onOpenGuardSetup: (() -> Unit)? = null,
     onGuardModeApplied: ((FocusMode) -> Unit)? = null, onGuardFocusEnded: (() -> Unit)? = null,
+    onPickCustomBackground: (() -> Unit)? = null, appVersion: String? = null,
 ) {
     val model = viewModel { TasksViewModel(repository) }
     // 登录后重启 App 生效：presence 凭据在连接时读取，未登录时静默不连接
@@ -59,7 +60,7 @@ fun FocusRoute(
         ) }
     }
     val focus = viewModel { FocusViewModel(focusRepository, presence) }
-    FocusApp(model, focus, sync, onEnableReminders, guardCapabilities, onOpenGuardSetup, onGuardModeApplied, onGuardFocusEnded)
+    FocusApp(model, focus, sync, onEnableReminders, guardCapabilities, onOpenGuardSetup, onGuardModeApplied, onGuardFocusEnded, onPickCustomBackground, appVersion)
 }
 
 @Composable
@@ -67,6 +68,7 @@ fun FocusApp(
     model: TasksViewModel, focus: FocusViewModel, sync: SyncCoordinator? = null, onEnableReminders: (() -> Unit)? = null,
     guardCapabilities: (() -> GuardCapabilities?)? = null, onOpenGuardSetup: (() -> Unit)? = null,
     onGuardModeApplied: ((FocusMode) -> Unit)? = null, onGuardFocusEnded: (() -> Unit)? = null,
+    onPickCustomBackground: (() -> Unit)? = null, appVersion: String? = null,
 ) {
     val feedbackPrefs by LocalFocusFeedback.current.prefs.collectAsState()
     FocusTheme(mode = feedbackPrefs.themeMode) {
@@ -77,7 +79,7 @@ fun FocusApp(
     var requestedTask by rememberSaveable { mutableStateOf<String?>(null) }
     if (selected == Destination.FOCUS) {
         FocusScreen(focus, state.data.tasks, requestedTask, { selected = Destination.TODAY }, onEnableReminders,
-            guardCapabilities, onOpenGuardSetup, onGuardModeApplied, onGuardFocusEnded)
+            guardCapabilities, onOpenGuardSetup, onGuardModeApplied, onGuardFocusEnded, onPickCustomBackground, appVersion)
         return@FocusTheme
     }
     var filter by rememberSaveable { mutableStateOf(TaskFilter.ALL) }
@@ -90,6 +92,7 @@ fun FocusApp(
     var deleteId by rememberSaveable { mutableStateOf<String?>(null) }
     var managing by rememberSaveable { mutableStateOf(false) }
     var statsRange by rememberSaveable { mutableStateOf(StatsRange.WEEK) }
+    var settingsPage by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbars = remember { SnackbarHostState() }
     LaunchedEffect(state.error) {
         if (state.error != null && state.editor == null && !managing) {
@@ -251,37 +254,66 @@ fun FocusApp(
                                     Heatmap(weeks, Modifier.testTag("stats_heatmap"))
                             }
                         }
-                        else -> {
-                                item { Text("任务与专注记录保存在这台设备。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall) }
-                                item { SettingsSection("账号与同步") { SyncPanel(sync) } }
-                                item {
-                                    SettingsSection("专注防护") {
-                                        val capabilities = guardCapabilities?.invoke()
-                                        if (capabilities == null) Text("此构建不支持专注防护。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
-                                        else {
-                                            val strength = guardStrength(FocusMode.STRICT, capabilities)
-                                            Text(
-                                                if (capabilities.accessibilityGranted) "严格守护已就绪；白名单与权限可在此调整。"
-                                                else if (strength.missingSteps.isEmpty()) "严格守护已就绪。"
-                                                else "严格守护未开启（缺少${strength.missingSteps.joinToString("、")}），专注时会按更低模式运行。",
-                                                color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
-                                            if (onOpenGuardSetup != null) OutlinedButton(onClick = onOpenGuardSetup, Modifier.testTag("open_guard_setup")) { Text("专注防护设置") }
+                            else -> {
+                                val open: (String?) -> Unit = { settingsPage = it }
+                                if (settingsPage == null) {
+                                    item { Text("任务与专注记录保存在这台设备。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall) }
+                                    item { SettingsMenuRow("账号与同步", "登录、跨设备同步任务与专注记录") { open("sync") } }
+                                    item { SettingsMenuRow("专注防护", "四档专注模式、权限与白名单") { open("guard") } }
+                                    item { SettingsMenuRow("提醒", "专注结束的系统通知") { open("reminders") } }
+                                    item { SettingsMenuRow("外观与反馈", "主题、专注背景、白噪音、音效触感、语录") { open("appearance") } }
+                                    item { SettingsMenuRow("任务组织", "项目与标签管理") { open("organize") } }
+                                    item { SettingsMenuRow("关于", "版本、用户协议与隐私政策") { open("about") } }
+                                } else when (settingsPage) {
+                                    "sync" -> { item { SettingsPageHeader("账号与同步") { open(null) } }; item { SyncPanel(sync) } }
+                                    "guard" -> {
+                                        item { SettingsPageHeader("专注防护") { open(null) } }
+                                        item {
+                                            val capabilities = guardCapabilities?.invoke()
+                                            if (capabilities == null) Text("此构建不支持专注防护。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                            else {
+                                                val strength = guardStrength(FocusMode.STRICT, capabilities)
+                                                Text(if (capabilities.accessibilityGranted) "严格守护已就绪。" else "严格守护未开启（缺少${strength.missingSteps.joinToString("、")}）。",
+                                                    color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                                if (onOpenGuardSetup != null) Button(onClick = onOpenGuardSetup, Modifier.fillMaxWidth().testTag("open_guard_setup")) { Text("专注防护设置") }
+                                            }
                                         }
                                     }
-                                }
-                                if (onEnableReminders != null) item {
-                                    SettingsSection("提醒") {
-                                        Text("专注结束的系统提醒是可选项，关闭不影响计时与记录。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
-                                        OutlinedButton(onClick = onEnableReminders) { Text("通知设置") }
+                                    "reminders" -> if (onEnableReminders != null) {
+                                        item { SettingsPageHeader("提醒") { open(null) } }
+                                        item {
+                                            Text("专注结束的系统提醒是可选项，关闭不影响计时与记录。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                            OutlinedButton(onClick = onEnableReminders) { Text("通知设置") }
+                                        }
                                     }
-                                }
-                                item { SettingsSection("反馈") { FeedbackSettings() } }
-                                item {
-                                    SettingsSection("任务组织") {
-                                        OutlinedButton(onClick = { managing = true; model.clearError() }) { Text("管理项目和标签") }
+                                    "appearance" -> {
+                                        item { SettingsPageHeader("外观与反馈") { open(null) } }
+                                        item {
+                                            Text("自定义背景：从相册选择专注页背景（仅本机保存，不申请其他权限）。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                            if (onPickCustomBackground != null) OutlinedButton(onClick = onPickCustomBackground, Modifier.fillMaxWidth().testTag("pick_background")) { Text("选择自定义背景") }
+                                        }
+                                        item { FeedbackSettings() }
                                     }
+                                    "organize" -> {
+                                        item { SettingsPageHeader("任务组织") { open(null) } }
+                                        item { OutlinedButton(onClick = { managing = true; model.clearError() }) { Text("管理项目和标签") } }
+                                    }
+                                    "about" -> {
+                                        item { SettingsPageHeader("关于") { open(null) } }
+                                        item {
+                                            Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                                Text("FocusFlow", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = FocusColors.Primary)
+                                                Text("One task. Any device.", color = FocusColors.Muted)
+                                                Text("版本 ${appVersion ?: "开发版"}", style = MaterialTheme.typography.bodySmall)
+                                            }
+                                        }
+                                        item { SettingsMenuRow("用户协议", "使用条款") { open("terms") } }
+                                        item { SettingsMenuRow("隐私政策", "数据收集与同步范围") { open("privacy") } }
+                                    }
+                                    "terms" -> { item { SettingsPageHeader("用户协议") { open("about") } }; item { Text(legal.TERMS, style = MaterialTheme.typography.bodySmall) } }
+                                    "privacy" -> { item { SettingsPageHeader("隐私政策") { open("about") } }; item { Text(legal.PRIVACY, style = MaterialTheme.typography.bodySmall) } }
                                 }
-                        }
+                            }
                     }
                 }
                 if (!compact) Surface(Modifier.testTag("supporting_pane").width(if (layout == WindowLayout.EXPANDED) 280.dp else 220.dp).fillMaxHeight()) {
@@ -479,5 +511,40 @@ private fun TaskDetail(task: Task, state: TasksState, millis: Long, onEdit: () -
         if (task.status == TaskStatus.TODO || task.status == TaskStatus.IN_PROGRESS) Button(onClick = onStart, modifier = Modifier.fillMaxWidth()) { Text("开始专注") }
         OutlinedButton(onClick = onEdit, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("编辑任务") }
         OutlinedButton(onClick = onDelete, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Text("删除任务") }
+    }
+}
+
+private object legal {
+    val TERMS = """用户协议（摘要）
+1. FocusFlow 提供任务管理与专注计时工具，按"现状"提供，不保证服务连续可用。
+2. 您创建的任务、专注记录等数据默认保存在本机；开启同步后按隐私政策所述范围上传。
+3. 严格/极致专注模式使用系统无障碍与屏幕固定能力，请遵循系统指引使用；请勿在需要注意力安全的场合（驾驶、操作机械等）使用专注锁定功能。
+4. 请勿利用本产品规避法律法规或损害他人权益。继续使用即表示接受本协议。"""
+
+    val PRIVACY = """隐私政策（摘要）
+1. 本地优先：任务、专注记录、设置、白名单默认仅保存在您的设备上。
+2. 同步范围：仅当您注册并登录后，任务与专注记录（含标题与时长）会同步到您配置的服务器；我们不上传您的安装应用列表，白名单仅保存在本机。
+3. 无障碍服务：仅在您主动开启严格守护并授权后运行，只读取当前窗口应用包名用于白名单提醒，不读取页面内容，不向外传输。
+4. 删除：在应用内删除任务为软删除；卸载应用将清除本机全部数据。
+5. 政策更新将在应用版本说明中提示。"""
+}
+
+@Composable
+private fun SettingsMenuRow(title: String, subtitle: String, onClick: () -> Unit) {
+    Card(onClick = onClick, Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outline, FocusShapes.card),
+        shape = FocusShapes.card, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Row(Modifier.padding(FocusSpacing.medium).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) { Text(title, style = MaterialTheme.typography.titleMedium); Text(subtitle, style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted) }
+            Text("›", style = MaterialTheme.typography.titleLarge, color = FocusColors.Muted)
+        }
+    }
+}
+
+@Composable
+private fun SettingsPageHeader(title: String, onBack: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = onBack) { Text("返回") }
+        Spacer(Modifier.width(FocusSpacing.small))
+        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
     }
 }
