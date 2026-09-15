@@ -252,3 +252,10 @@
 - 严格模式：切到非白名单应用改为拉回 + 应用内弹窗提醒（"离开专注了/回到专注"），替代原系统通知（易被 ROM 折叠）；白名单仍不触发。通知通道代码移除。
 - 软性模式中断统计（此前从未实现、统计页恒 0）：专注结算后用 UsageStats 事件流聚合"从本应用切出"次数，写入 FocusSession.interruptCount（新 DAO updateInterruptCount + UPDATE 同步事件）；切出即计入（含回启动器），统计页中断次数从此有数据。
 - 模式说明文案与测试同步更新。core/database/tasks 测试全绿。
+
+## 柔和高级 UI 全面优化（2026-09-15，1.7.0 / versionCode 39）
+- 新组件系统：FocusButtons（渐变主按钮/描边次按钮/文字按钮，弹性缩放动效）、FocusCards（柔和阴影+细腻边框）、FocusInputs（聚焦变色+FocusNumberField）、FocusChips（选中渐变+弹性动效）；按钮高度 48dp、内边距 24dp。
+- 专注页：卡片分组（选择任务/计时设置/专注模式/背景风格/结束提醒）+ 开始按钮全宽；卡片间距 8dp；模式芯片行去掉 horizontalScroll（修复 performScrollTo 绑定横向容器导致点击坐标超出屏幕的测试失败）；恢复降级提示原文案。
+- 任务列表：Today 页三统计合并为 FocusCard"今日概览"（Primary 色 titleLarge 数字）；筛选区 FocusCard 包裹 + FocusChip；TaskCard 柔和阴影卡片 + FocusChipCompact 标签 + FocusSecondaryButton。
+- 任务对话框：FocusTextField/FocusNumberField/FocusChip/FocusPrimaryButton 全面替换；FocusTextField 改用 OutlinedTextField 内核（保留测试语义兼容），FocusColors.Error→PriorityHigh。
+- 12/12 测试全绿；APK：artifacts/FocusFlow-1.7.0-debug.apk（装机待设备重连）。
