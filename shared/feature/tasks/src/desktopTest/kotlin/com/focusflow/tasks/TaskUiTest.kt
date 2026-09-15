@@ -269,6 +269,11 @@ class TaskUiTest {
         val task = model.state.value.data.tasks.single()
         compose.onNodeWithText("任务").performClick()
         compose.onNodeWithTag("quick_focus_${task.id}").performClick()
+        // 极致模式不直开：先经准备页，再经应用内确认弹窗
+        compose.onNodeWithText("准备好，专注一件事").assertExists()
+        compose.onNodeWithTag("start_focus").performScrollTo().performClick()
+        compose.onNodeWithText("开始极致专注？").assertExists()
+        compose.onNodeWithText("确认开始").performClick()
         compose.waitUntil(10000) { focus.state.value.run?.session?.strictMode == com.focusflow.core.FocusMode.EXTREME }
         // 守护由会话状态驱动应用（同一驱动覆盖休息后的自动下一轮与进程恢复）
         compose.waitUntil(10000) { appliedExtreme >= 1 }

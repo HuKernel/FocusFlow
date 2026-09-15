@@ -194,8 +194,9 @@ fun FocusApp(
                                     // NORMAL 不依赖任何权限；其他模式需平台能力齐备且不降级才直开
                                     val effective = guardCapabilities?.invoke()?.let { caps -> effectiveMode(preferred ?: FocusMode.NORMAL, caps) }
                                         ?: preferred.takeIf { it == FocusMode.NORMAL }
-                                    if (preferred != null && effective == preferred) {
+                                    if (preferred != null && effective == preferred && preferred != FocusMode.EXTREME) {
                                         // 权限齐备：按任务预设模式直接开始；时长用目标专注分钟，未设目标则正计时
+                                        // 极致模式例外：不可退出性质的开始必须经准备页的确认弹窗
                                         val duration = if (task.targetFocusMinutes > 0) task.targetFocusMinutes * 60_000L else 0L
                                         feedback.play(SoundEvent.FOCUS_START); feedback.perform(HapticEvent.START_FOCUS)
                                         if (preferred != FocusMode.NORMAL) onGuardModeApplied?.invoke(preferred)

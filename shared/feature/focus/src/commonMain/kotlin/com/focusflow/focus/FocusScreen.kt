@@ -56,10 +56,24 @@ fun FocusScreen(
     var breakMinutes by rememberSaveable { mutableStateOf("5") }
     var validation by rememberSaveable { mutableStateOf<String?>(null) }
     var cancelling by rememberSaveable { mutableStateOf(false) }
+    var confirmingExtreme by rememberSaveable { mutableStateOf(false) }
     var landscapeLocked by rememberSaveable { mutableStateOf(false) }
     // 离开专注页即归还方向控制权（横屏锁定只在专注页内可选）
     DisposableEffect(Unit) { onDispose { if (landscapeLocked) onToggleLandscape?.invoke(false) } }
     var selectedMode by rememberSaveable(requestedTask) { mutableStateOf(requestedTask?.let { id -> tasks.firstOrNull { it.id == id }?.preferredFocusMode } ?: FocusMode.NORMAL) }
+    fun startFocus() {
+        val duration = minutes.toLongOrNull()
+        val breakDuration = breakMinutes.toLongOrNull()
+        if (type == TimerType.COUNTDOWN && (duration == null || duration !in 1L..1440L)) { validation = "请输入 1–1440 之间的整数分钟"; return }
+        if (breakDuration == null || breakDuration !in 1L..120L) { validation = "请输入 1–120 之间的休息分钟"; return }
+        validation = null
+        selectedTask?.let {
+            feedback.play(SoundEvent.FOCUS_START); feedback.perform(HapticEvent.START_FOCUS)
+            val effective = guardCapabilities?.invoke()?.let { effectiveMode(selectedMode, it) } ?: FocusMode.NORMAL
+            if (effective != FocusMode.NORMAL) onGuardModeApplied?.invoke(effective)
+            model.start(it, if (type == TimerType.STOPWATCH) 0 else duration!! * 60000, type, effective, breakDuration * 60000)
+        }
+    }
     val run = state.run
     LaunchedEffect(state.error) { if (state.error != null) feedback.play(SoundEvent.ERROR) }
     // 专注进入休息或终态即解除屏幕固定与守护：休息期间允许自由使用手机
@@ -195,13 +209,9 @@ fun FocusScreen(
                                     if (type == TimerType.COUNTDOWN && (duration == null || duration !in 1L..1440L)) validation = "请输入 1–1440 之间的整数分钟"
                                     else if (breakDuration == null || breakDuration !in 1L..120L) validation = "请输入 1–120 之间的休息分钟"
                                     else {
-                                        validation = null
-                                        selectedTask?.let {
-                                            feedback.play(SoundEvent.FOCUS_START); feedback.perform(HapticEvent.START_FOCUS)
-                                            val effective = guardCapabilities?.invoke()?.let { effectiveMode(selectedMode, it) } ?: FocusMode.NORMAL
-                                            if (effective != FocusMode.NORMAL) onGuardModeApplied?.invoke(effective)
-                                            model.start(it, if (type == TimerType.STOPWATCH) 0 else duration!! * 60000, type, effective, breakDuration * 60000)
-                                        }
+                                        val effective = guardCapabilities?.invoke()?.let { effectiveMode(selectedMode, it) } ?: FocusMode.NORMAL
+                                        // 极致模式经应用内确认弹窗二次确认（不可退出性质的开始需明确仪式感）
+                                        if (effective == FocusMode.EXTREME) confirmingExtreme = true else startFocus()
                                     }
                                 }, enabled = !state.busy && choices.any { it.id == selectedTask }) { Text("开始专注", style = MaterialTheme.typography.labelLarge) }
                         }
@@ -305,6 +315,10 @@ fun FocusScreen(
             }
         }
     }
+    if (confirmingExtreme && run == null) AlertDialog(onDismissRequest = { confirmingExtreme = false }, title = { Text("开始极致专注？") },
+        text = { Text("确认后屏幕将被固定：直到计时结束（正计时为手动完成）都无法退出，长按返回等系统退出方式会在数秒内被重新固定。首次开始时系统会再弹一次「应用固定」授权，请点「开始使用」。") },
+        confirmButton = { TextButton(onClick = { confirmingExtreme = false; startFocus() }, enabled = !state.busy) { Text("确认开始") } },
+        dismissButton = { TextButton(onClick = { confirmingExtreme = false }) { Text("再想想") } })
     if (cancelling && run != null) AlertDialog(onDismissRequest = { cancelling = false }, title = { Text("取消本次专注？") },
         text = { Text("已用时间会保存为取消记录，但不会增加任务的专注进度。") },
         confirmButton = { TextButton(onClick = { feedback.perform(HapticEvent.WARNING); model.cancel(run.session.id); cancelling = false }, enabled = !state.busy) { Text("确认取消") } },

@@ -33,14 +33,17 @@ class MainActivity : ComponentActivity() {
     private var guardSetupOpen by mutableStateOf(false)
 
     // 极致专注防退出：系统手势（长按返回/上滑长按）由 SystemUI 处理、应用无法拦截，
-    // 这里做的是"无效化"——失锁后快速重新 startLockTask。
-    // 3 秒节流是关键：确认对话框弹出会让本应用失焦（onStop），无节流会立即重发请求形成"弹窗闪烁"死循环。
+    // 这里做的是"无效化"——失锁后重新 startLockTask。
+    // 节流规则：从未确认过系统授权框时（对话框仍在等待用户点"开始使用"）只低频 15s 重试，
+    // 不再循环弹框；确认并锁定过之后（hasPinnedOnce）失锁才以 3s 快速重锁。
     @Volatile private var extremeActive = false
+    @Volatile private var hasPinnedOnce = false
     private var lastLockRequest = 0L
     private fun relockIfExtreme() {
-        if (!extremeActive || getSystemService(android.app.ActivityManager::class.java).isInLockTaskMode) return
+        if (!extremeActive) return
+        if (getSystemService(android.app.ActivityManager::class.java).isInLockTaskMode) { hasPinnedOnce = true; return }
         val now = android.os.SystemClock.elapsedRealtime()
-        if (now - lastLockRequest < 3000) return
+        if (now - lastLockRequest < if (hasPinnedOnce) 3000L else 15000L) return
         lastLockRequest = now
         runCatching { startLockTask() }
     }
