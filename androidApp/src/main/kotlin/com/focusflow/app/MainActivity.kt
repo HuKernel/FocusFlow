@@ -8,6 +8,16 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.activity.enableEdgeToEdge
 import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.lifecycleScope
@@ -38,6 +48,7 @@ class MainActivity : ComponentActivity() {
     // 再调用 startLockTask 不会弹任何系统框，可用 250ms 快速重锁，把系统手势的逃离窗口压到最小。
     @Volatile private var extremeActive = false
     @Volatile private var hasPinnedOnce = false
+    @Volatile var lastEscapeAt = 0L // 最近一次"失锁→重锁"时刻，驱动逃逸警告页倒计时
     private var lastLockRequest = 0L
     private fun relockIfExtreme() {
         if (!extremeActive) return
@@ -45,6 +56,7 @@ class MainActivity : ComponentActivity() {
         val now = android.os.SystemClock.elapsedRealtime()
         if (now - lastLockRequest < if (hasPinnedOnce) 250L else 15000L) return
         lastLockRequest = now
+        if (hasPinnedOnce) lastEscapeAt = System.currentTimeMillis()
         runCatching { startLockTask() }
     }
     override fun onStop() {
@@ -93,6 +105,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(activeRun) {
                 extremeActive = activeRun != null && activeRun!!.session.strictMode == FocusMode.EXTREME &&
                     activeRun!!.anchor.state == com.focusflow.core.TimerState.FOCUSING
+                if (!extremeActive) lastEscapeAt = 0L
             }
             LaunchedEffect(Unit) {
                 while (true) {
@@ -100,6 +113,9 @@ class MainActivity : ComponentActivity() {
                     relockIfExtreme()
                 }
             }
+            // 逃逸警告页：极致锁定被系统手势解除并重锁后，显示 5 秒倒计时再回到专注页（替代"闪回"）
+            var nowTick by remember { mutableStateOf(System.currentTimeMillis()) }
+            LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(200); nowTick = System.currentTimeMillis() } }
             val prefs by feedback.prefs.collectAsState()
             val customBitmap = remember(prefs.customBackgroundPath) {
                 prefs.customBackgroundPath?.let { path -> runCatching { BitmapFactory.decodeFile(path)?.asImageBitmap() }.getOrNull() }
@@ -125,7 +141,8 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(LocalFocusFeedback provides feedback, com.focusflow.designsystem.LocalWhiteNoise provides whiteNoise,
                 LocalCustomBackground provides customBitmap,
                 com.focusflow.designsystem.LocalBuiltinBackgrounds provides builtinBackgrounds) {
-                    FocusRoute(
+                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
+                        FocusRoute(
                         app.tasks, app.focus, app.sync,
                         onEnableReminders = {
                             val preferences = getPreferences(MODE_PRIVATE)
@@ -148,7 +165,18 @@ class MainActivity : ComponentActivity() {
                             requestedOrientation = if (landscape) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                             else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
                         },
-                    )
+                        )
+                        val escapeRemaining = lastEscapeAt + 5000 - nowTick
+                        if (escapeRemaining > 0) Box(Modifier.fillMaxSize().background(Color(0xFF0E0E14))) {
+                            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center) {
+                                Text("已退出专注锁定", color = Color(0xFFFF6B6B), style = MaterialTheme.typography.headlineSmall)
+                                Text("专注计时仍在继续", color = Color(0xFFB8B8D9), style = MaterialTheme.typography.bodyMedium)
+                                Text("${(escapeRemaining + 999) / 1000}", color = Color.White, style = MaterialTheme.typography.displayLarge)
+                                Text("秒后重新锁定并回到专注", color = Color(0xFFB8B8D9), style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
                 }
             }
         }
