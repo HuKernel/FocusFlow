@@ -93,8 +93,8 @@ fun FocusPrimaryButton(
                 ),
                 shape = FocusShapes.button
             )
-            .height(56.dp)
-            .padding(horizontal = 32.dp)
+            .height(48.dp)
+            .padding(horizontal = 24.dp)
             .clip(FocusShapes.button)
             .clickable(
                 interactionSource = interactionSource,
@@ -172,8 +172,8 @@ fun FocusSecondaryButton(
                 color = if (enabled) FocusColors.Primary else FocusColors.Muted.copy(alpha = 0.5f),
                 shape = FocusShapes.button
             )
-            .height(56.dp)
-            .padding(horizontal = 32.dp)
+            .height(48.dp)
+            .padding(horizontal = 24.dp)
             .clip(FocusShapes.button)
             .clickable(
                 interactionSource = interactionSource,
