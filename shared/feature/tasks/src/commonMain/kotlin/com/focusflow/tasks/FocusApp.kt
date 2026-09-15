@@ -2,10 +2,11 @@ package com.focusflow.tasks
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -18,6 +19,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -499,38 +502,87 @@ private fun TaskCard(task: Task, state: TasksState, millis: Long, modifier: Modi
     val feedback = LocalFocusFeedback.current
     val prefs by feedback.prefs.collectAsState()
     val done = task.status == TaskStatus.DONE
-    val titleColor by animateColorAsState(if (done) FocusColors.Muted else MaterialTheme.colorScheme.onSurface,
+    val titleColor by animateColorAsState(if (done) FocusColors.Muted else FocusColors.Ink,
         tween(FocusMotion.duration(prefs.reducedMotion, FocusMotion.fast), easing = FocusMotion.easing), label = "task_title")
-    Card(onClick = onOpen, modifier = modifier.fillMaxWidth().testTag("task_${task.id}").border(1.dp, MaterialTheme.colorScheme.outline, FocusShapes.card),
-        shape = FocusShapes.card, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Row(Modifier.padding(FocusSpacing.medium), verticalAlignment = Alignment.CenterVertically) {
+    
+    // 使用柔和高级卡片
+    androidx.compose.foundation.layout.Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("task_${task.id}")
+            .shadow(
+                elevation = 8.dp,
+                shape = FocusShapes.card,
+                ambientColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.08f),
+                spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.04f)
+            )
+            .background(
+                color = androidx.compose.ui.graphics.Color.White,
+                shape = FocusShapes.card
+            )
+            .border(
+                width = 1.dp,
+                color = androidx.compose.ui.graphics.Color(0xFFE8E8F0),
+                shape = FocusShapes.card
+            )
+            .padding(20.dp)
+            .clickable(onClick = onOpen)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(done, {
                 onComplete(it)
                 if (it) { feedback.play(SoundEvent.TASK_COMPLETE); feedback.perform(HapticEvent.SUCCESS) }
                 else feedback.perform(HapticEvent.SELECTION)
             }, enabled = !state.busy, modifier = Modifier.testTag("complete_${task.id}").semantics { contentDescription = "完成任务：${task.title}" })
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            
+            Column(Modifier.weight(1f).padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // 标题行
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (task.priority != Priority.NONE) Box(Modifier.size(7.dp).background(
                         when (task.priority) { Priority.HIGH -> FocusColors.PriorityHigh; Priority.MEDIUM -> FocusColors.PriorityMedium; else -> FocusColors.PriorityLow },
                         androidx.compose.foundation.shape.CircleShape))
-                    Text(task.title, fontWeight = FontWeight.SemiBold, color = titleColor, textDecoration = if (done) TextDecoration.LineThrough else null)
+                    Text(task.title, fontWeight = FontWeight.SemiBold, color = titleColor, 
+                        style = MaterialTheme.typography.titleMedium,
+                        textDecoration = if (done) TextDecoration.LineThrough else null)
                 }
+                
+                // 项目/时间信息
                 Text(listOfNotNull(state.data.projects.find { it.id == task.projectId }?.name, task.plannedStartTime, task.plannedDate).joinToString(" · "),
                     color = FocusColors.Muted, style = MaterialTheme.typography.labelMedium)
+                
+                // 专注进度
                 if (task.targetFocusMinutes > 0) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                        LinearProgressIndicator(progress = { (millis.toFloat() / (task.targetFocusMinutes * 60000L)).coerceIn(0f, 1f) },
+                        LinearProgressIndicator(
+                            progress = { (millis.toFloat() / (task.targetFocusMinutes * 60000L)).coerceIn(0f, 1f) },
                             Modifier.weight(1f).height(5.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp)),
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant)
+                            trackColor = androidx.compose.ui.graphics.Color(0xFFE8E8F0),
+                            color = FocusColors.Primary
+                        )
                         Text("${millis / 60000}/${task.targetFocusMinutes}分", color = FocusColors.Muted, style = MaterialTheme.typography.labelSmall)
                     }
                 }
+                
+                // 标签
                 val names = state.data.links.filter { it.taskId == task.id }.mapNotNull { link -> state.data.tags.find { it.id == link.tagId }?.name }
-                if (names.isNotEmpty()) Text(names.joinToString("  ") { "#$it" }, color = FocusColors.Primary, style = MaterialTheme.typography.labelMedium)
-                if (task.status == TaskStatus.TODO || task.status == TaskStatus.IN_PROGRESS) Button(onClick = onStart,
-                    modifier = Modifier.testTag("quick_focus_${task.id}").height(38.dp), shape = FocusShapes.button,
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = FocusSpacing.large)) { Text("开始专注") }
+                if (names.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        names.take(3).forEach { name ->
+                            FocusChipCompact(selected = false, onClick = { }, label = "#$name")
+                        }
+                        if (names.size > 3) Text("+${names.size - 3}", color = FocusColors.Muted, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                
+                // 开始专注按钮
+                if (task.status == TaskStatus.TODO || task.status == TaskStatus.IN_PROGRESS) {
+                    FocusSecondaryButton(
+                        onClick = onStart,
+                        modifier = Modifier.testTag("quick_focus_${task.id}")
+                    ) {
+                        Text("开始专注", color = FocusColors.Primary)
+                    }
+                }
             }
         }
     }
