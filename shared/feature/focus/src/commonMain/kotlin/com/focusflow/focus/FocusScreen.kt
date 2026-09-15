@@ -152,6 +152,14 @@ fun FocusScreen(
                             @Composable fun setupLeft() {
                                 state.remote?.let { remote -> ObserverPanel(remote, state.busy, model::takeover) }
                                 
+                                // 主标题
+                                Text(
+                                    "准备好，专注一件事",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = theme.content
+                                )
+                                
                                 // 任务选择卡片
                                 FocusCard(
                                     title = "选择任务",
@@ -226,8 +234,8 @@ fun FocusScreen(
                                     subtitle = "选择防护强度"
                                 ) {
                                     Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                        // 模式选择
-                                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                        // 模式选择（无 horizontalScroll：避免 performScrollTo 绑定到横向滚动容器导致纵向滚动失效）
+                                        Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                                             listOf(FocusMode.NORMAL to "普通", FocusMode.SOFT to "软性", FocusMode.STRICT to "严格", FocusMode.EXTREME to "极致").forEach { (choice, label) ->
                                                 FocusChip(selectedMode == choice, { selectedMode = choice }, label = label, modifier = Modifier.testTag("guard_mode_${choice.name}"))
                                             }
@@ -238,9 +246,9 @@ fun FocusScreen(
                                             val strength = guardStrength(selectedMode, capabilities)
                                             Text(
                                                 when (strength.effective) {
-                                                    FocusMode.NORMAL -> "普通模式：可随时离开，不限制其他应用。"
+                                                    FocusMode.NORMAL -> "当前权限下按普通模式计时：可随时离开，不限制其他应用。"
                                                     FocusMode.SOFT -> "软性模式：允许切换应用，切出会被记录，统计页可看中断次数。"
-                                                    FocusMode.STRICT -> "严格模式：离开白名单应用会被拉回并弹窗提醒。"
+                                                    FocusMode.STRICT -> "严格模式：离开白名单应用会被拉回并弹窗提醒（需无障碍服务）。"
                                                     FocusMode.EXTREME -> "极致模式：开始后离开本应用会被立即拉回并显示警告倒计时，直到计时结束。"
                                                 },
                                                 color = FocusColors.Muted,
@@ -421,15 +429,15 @@ fun FocusScreen(
                                 }
                             }
                         }
-                        if (landscape) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.large, Alignment.CenterHorizontally)) {
+                        if (landscape) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small, Alignment.CenterHorizontally)) {
                             // ponytail: 横屏双栏收窄居中；勿加 fillMaxHeight/Center 与 scroll 的组合（无限重测，测试实证）。内栏纯滚动仅任务过多溢出时生效
-                            Column(Modifier.weight(1f, fill = false).widthIn(max = 460.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                            Column(Modifier.weight(1f, fill = false).widthIn(max = 460.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                                 if (setupStage) setupLeft() else runLeft()
                             }
-                            Column(Modifier.weight(1f, fill = false).widthIn(max = 460.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                            Column(Modifier.weight(1f, fill = false).widthIn(max = 460.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                                 if (setupStage) setupRight() else runRight()
                             }
-                        } else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                        } else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                             if (setupStage) { setupLeft(); setupRight() } else { runLeft(); runRight() }
                         }
                     }

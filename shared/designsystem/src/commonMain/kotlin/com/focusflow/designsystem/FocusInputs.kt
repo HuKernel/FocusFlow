@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +27,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.setText
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -48,77 +53,32 @@ fun FocusTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
-    var isFocused by remember { mutableStateOf(false) }
-    
-    val borderColor = when {
-        !enabled -> Color(0xFFE0E0E0)
-        isFocused -> FocusColors.Primary
-        else -> Color(0xFFE8E8F0)
-    }
-    
-    val shadowElevation = if (isFocused) 6.dp else 0.dp
-    
-    Column(
+    androidx.compose.material3.OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        if (label != null) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (isFocused) FocusColors.Primary else Color(0xFF6B7280)
-            )
-        }
-        
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(
-                    elevation = shadowElevation,
-                    shape = RoundedCornerShape(12.dp),
-                    ambientColor = FocusColors.Primary.copy(alpha = 0.1f),
-                    spotColor = FocusColors.Primary.copy(alpha = 0.05f)
-                )
-                .background(
-                    color = if (enabled) Color.White else Color(0xFFF5F5F5),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .border(
-                    width = 1.5.dp,
-                    color = borderColor,
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .padding(horizontal = 16.dp, vertical = 14.dp)
-        ) {
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged { isFocused = it.isFocused },
-                enabled = enabled,
-                textStyle = TextStyle(
-                    color = Color(0xFF1A1A2E),
-                    fontSize = MaterialTheme.typography.bodyLarge.fontSize,
-                    lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
-                ),
-                singleLine = singleLine,
-                maxLines = maxLines,
-                keyboardOptions = keyboardOptions,
-                keyboardActions = keyboardActions,
-                visualTransformation = visualTransformation,
-                cursorBrush = SolidColor(FocusColors.Primary)
-            )
-            
-            if (value.isEmpty() && placeholder != null) {
-                Text(
-                    text = placeholder,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color(0xFF9CA3AF)
-                )
-            }
-        }
-    }
+        enabled = enabled,
+        label = if (label != null) {{ Text(label) }} else null,
+        placeholder = if (placeholder != null) {{ Text(placeholder, color = Color(0xFF9CA3AF)) }} else null,
+        singleLine = singleLine,
+        maxLines = maxLines,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        visualTransformation = visualTransformation,
+        colors = TextFieldDefaults.colors(
+            focusedIndicatorColor = FocusColors.Primary,
+            unfocusedIndicatorColor = Color(0xFFE8E8F0),
+            disabledIndicatorColor = Color(0xFFE0E0E0),
+            focusedTextColor = Color(0xFF1A1A2E),
+            unfocusedTextColor = Color(0xFF1A1A2E),
+            disabledTextColor = Color(0xFF9CA3AF),
+            cursorColor = FocusColors.Primary,
+            focusedLabelColor = FocusColors.Primary,
+            unfocusedLabelColor = Color(0xFF6B7280),
+            disabledLabelColor = Color(0xFF9CA3AF),
+        ),
+        shape = RoundedCornerShape(12.dp)
+    )
 }
 
 /**

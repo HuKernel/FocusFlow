@@ -41,20 +41,60 @@ fun TaskEditorDialog(editor: TaskEditor, state: TasksState, onDismiss: () -> Uni
     AlertDialog(onDismissRequest = { if (!state.busy) onDismiss() }, title = { Text(if (original == null) "新建任务" else "编辑任务") },
         text = {
             Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth().testTag("task_title"), label = { Text("任务标题") }, singleLine = true, enabled = !state.busy)
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                // 任务标题输入框
+                FocusTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = "任务标题",
+                    placeholder = "输入任务标题",
+                    modifier = Modifier.testTag("task_title")
+                )
+                // 日期快捷选择
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                     val tomorrow = LocalDate.parse(state.today).plus(1, DateTimeUnit.DAY).toString()
                     listOf("今天" to state.today, "明天" to tomorrow, "未安排" to "").forEach { (label, value) ->
-                        FilterChip(date == value, { date = value }, label = { Text(label) }, enabled = !state.busy)
+                        FocusChip(date == value, { date = value }, label = label)
                     }
                 }
-                TextButton(onClick = { advanced = !advanced }) { Text(if (advanced) "收起选项" else "更多选项") }
+                // 展开/收起更多选项
+                FocusTextButton(onClick = { advanced = !advanced }) { 
+                    Text(if (advanced) "收起选项" else "更多选项", color = FocusColors.Primary) 
+                }
                 if (advanced) {
-                    OutlinedTextField(description, { description = it }, Modifier.fillMaxWidth().testTag("task_description"), label = { Text("备注") }, minLines = 2, enabled = !state.busy)
-                    OutlinedTextField(date, { date = it }, Modifier.fillMaxWidth().testTag("task_date"), label = { Text("计划日期（YYYY-MM-DD）") }, singleLine = true, enabled = !state.busy)
-                    OutlinedTextField(startTime, { startTime = it }, Modifier.fillMaxWidth().testTag("task_start_time"), label = { Text("开始时间（HH:mm，可选）") }, singleLine = true, enabled = !state.busy)
-                    OutlinedTextField(minutes, { minutes = it }, Modifier.fillMaxWidth().testTag("task_minutes"), label = { Text("目标专注分钟（0 为不设目标）") },
-                        singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = !state.busy)
+                    // 备注输入框
+                    FocusTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        label = "备注",
+                        placeholder = "添加任务备注",
+                        modifier = Modifier.testTag("task_description")
+                    )
+                    // 计划日期输入框
+                    FocusTextField(
+                        value = date,
+                        onValueChange = { date = it },
+                        label = "计划日期",
+                        placeholder = "YYYY-MM-DD",
+                        modifier = Modifier.testTag("task_date")
+                    )
+                    // 开始时间输入框
+                    FocusTextField(
+                        value = startTime,
+                        onValueChange = { startTime = it },
+                        label = "开始时间",
+                        placeholder = "HH:mm",
+                        modifier = Modifier.testTag("task_start_time")
+                    )
+                    // 目标专注分钟输入框
+                    FocusNumberField(
+                        value = minutes,
+                        onValueChange = { minutes = it },
+                        label = "目标专注分钟",
+                        placeholder = "25",
+                        suffix = "分钟",
+                        modifier = Modifier.testTag("task_minutes")
+                    )
+                    // 项目、优先级、专注模式选择
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                         ChoiceMenu("项目", project, state.data.projects.map { it.id to it.name }, { project = it }, "无项目")
                         ChoiceMenu("优先级", priority.name, Priority.entries.map { it.name to priorityLabel(it) }, { priority = it?.let(Priority::valueOf) ?: Priority.NONE }, "无优先级")
@@ -62,30 +102,50 @@ fun TaskEditorDialog(editor: TaskEditor, state: TasksState, onDismiss: () -> Uni
                             .map { name: String -> name to (if (name.isEmpty()) "进入时选择" else focusModeLabel(FocusMode.valueOf(name))) },
                             { value: String? -> mode = if (value.isNullOrEmpty()) null else value })
                     }
+                    // 专注模式说明
                     Text("设置了专注模式的任务，点击「开始专注」直接按该模式开始（权限不足时进入准备页查看降级说明）。", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
-                    Text("标签（可多选）", style = MaterialTheme.typography.labelLarge)
-                    if (state.data.tags.isEmpty()) Text("先在“管理项目和标签”中添加标签。", style = MaterialTheme.typography.bodySmall)
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                        state.data.tags.forEach { tag -> FilterChip(tag.id in tags, { tags = if (tag.id in tags) tags - tag.id else tags + tag.id }, label = { Text(tag.name) }, enabled = !state.busy) }
+                    // 标签选择
+                    Text("标签（可多选）", style = MaterialTheme.typography.labelLarge, color = FocusColors.Ink)
+                    if (state.data.tags.isEmpty()) {
+                        Text("先在「管理项目和标签」中添加标签。", style = MaterialTheme.typography.bodySmall, color = FocusColors.Muted)
+                    } else {
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                            state.data.tags.forEach { tag -> 
+                                FocusChip(tag.id in tags, { tags = if (tag.id in tags) tags - tag.id else tags + tag.id }, label = tag.name)
+                            }
+                        }
                     }
                 }
-                (validation ?: state.error)?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                // 验证错误提示
+                (validation ?: state.error)?.let { 
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) 
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                val parsed = minutes.toIntOrNull()
-                if (parsed == null) validation = "目标时长需要填写整数"
-                else {
-                    val draft = TaskDraft(title = title, description = description, plannedDate = date.ifBlank { null },
-                        plannedStartTime = startTime.ifBlank { null }, preferredFocusMode = mode?.let(FocusMode::valueOf),
-                        priority = priority, targetFocusMinutes = parsed, projectId = project, tagIds = tags.toSet())
-                    try { draft.validate(); validation = null; onSave(draft) }
-                    catch (error: IllegalArgumentException) { validation = error.message }
-                }
-            }, enabled = !state.busy && title.isNotBlank(), modifier = Modifier.testTag("save_task")) { Text(if (state.busy) "保存中…" else "保存") }
+            FocusPrimaryButton(
+                onClick = {
+                    val parsed = minutes.toIntOrNull()
+                    if (parsed == null) validation = "目标时长需要填写整数"
+                    else {
+                        val draft = TaskDraft(title = title, description = description, plannedDate = date.ifBlank { null },
+                            plannedStartTime = startTime.ifBlank { null }, preferredFocusMode = mode?.let(FocusMode::valueOf),
+                            priority = priority, targetFocusMinutes = parsed, projectId = project, tagIds = tags.toSet())
+                        try { draft.validate(); validation = null; onSave(draft) }
+                        catch (error: IllegalArgumentException) { validation = error.message }
+                    }
+                },
+                enabled = !state.busy && title.isNotBlank(),
+                modifier = Modifier.testTag("save_task")
+            ) { 
+                Text(if (state.busy) "保存中…" else "保存", color = androidx.compose.ui.graphics.Color.White) 
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !state.busy) { Text("取消") } },
+        dismissButton = { 
+            FocusTextButton(onClick = onDismiss, enabled = !state.busy) { 
+                Text("取消", color = FocusColors.Muted) 
+            } 
+        },
     )
 }
 
@@ -103,29 +163,57 @@ fun OrganizationDialog(state: TasksState, model: TasksViewModel, onDismiss: () -
     AlertDialog(onDismissRequest = { if (!state.busy) onDismiss() }, title = { Text("项目和标签") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                // 项目/标签切换
                 Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                    FilterChip(projects, { projects = true; editingId = null; name = ""; model.clearError() }, label = { Text("项目") }, enabled = !state.busy)
-                    FilterChip(!projects, { projects = false; editingId = null; name = ""; model.clearError() }, label = { Text("标签") }, enabled = !state.busy)
+                    FocusChip(projects, { projects = true; editingId = null; name = ""; model.clearError() }, label = "项目")
+                    FocusChip(!projects, { projects = false; editingId = null; name = ""; model.clearError() }, label = "标签")
                 }
+                // 列表
                 LazyColumn(Modifier.heightIn(max = 200.dp)) {
-                    if (entries.isEmpty()) item { Text(if (projects) "还没有项目" else "还没有标签") }
+                    if (entries.isEmpty()) item { 
+                        Text(if (projects) "还没有项目" else "还没有标签", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall) 
+                    }
                     items(entries, key = { it.first }) { (id, label) ->
                         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             Text(label, Modifier.weight(1f))
-                            IconButton(onClick = { editingId = id; name = label; model.clearError() }, enabled = !state.busy) { Icon(Icons.Outlined.Edit, "重命名 $label") }
-                            IconButton(onClick = { deletingId = id }, enabled = !state.busy) { Icon(Icons.Outlined.Delete, "删除 $label") }
+                            IconButton(onClick = { editingId = id; name = label; model.clearError() }, enabled = !state.busy) { 
+                                Icon(Icons.Outlined.Edit, "重命名 $label", tint = FocusColors.Primary) 
+                            }
+                            IconButton(onClick = { deletingId = id }, enabled = !state.busy) { 
+                                Icon(Icons.Outlined.Delete, "删除 $label", tint = FocusColors.PriorityHigh) 
+                            }
                         }
                     }
                 }
-                OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth().testTag("organization_name"),
-                    label = { Text(if (editingId == null) "新${if (projects) "项目" else "标签"}名称" else "重命名") }, singleLine = true, enabled = !state.busy)
-                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                Row {
-                    Button(onClick = {
-                        if (projects) model.saveProject(name, state.data.projects.find { it.id == editingId })
-                        else model.saveTag(name, state.data.tags.find { it.id == editingId })
-                    }, enabled = !state.busy && name.isNotBlank(), modifier = Modifier.testTag("save_organization")) { Text(if (editingId == null) "添加" else "保存名称") }
-                    if (editingId != null) TextButton(onClick = { editingId = null; name = "" }) { Text("取消修改") }
+                // 名称输入框
+                FocusTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = if (editingId == null) "新${if (projects) "项目" else "标签"}名称" else "重命名",
+                    placeholder = "输入名称",
+                    modifier = Modifier.testTag("organization_name")
+                )
+                // 错误提示
+                state.error?.let { 
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) 
+                }
+                // 操作按钮
+                Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                    FocusPrimaryButton(
+                        onClick = {
+                            if (projects) model.saveProject(name, state.data.projects.find { it.id == editingId })
+                            else model.saveTag(name, state.data.tags.find { it.id == editingId })
+                        },
+                        enabled = !state.busy && name.isNotBlank(),
+                        modifier = Modifier.testTag("save_organization")
+                    ) { 
+                        Text(if (editingId == null) "添加" else "保存名称", color = androidx.compose.ui.graphics.Color.White) 
+                    }
+                    if (editingId != null) {
+                        FocusTextButton(onClick = { editingId = null; name = "" }) { 
+                            Text("取消修改", color = FocusColors.Muted) 
+                        }
+                    }
                 }
             }
         },
