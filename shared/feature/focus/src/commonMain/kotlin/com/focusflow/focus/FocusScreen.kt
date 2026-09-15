@@ -316,7 +316,7 @@ fun FocusScreen(
         }
     }
     if (confirmingExtreme && run == null) AlertDialog(onDismissRequest = { confirmingExtreme = false }, title = { Text("开始极致专注？") },
-        text = { Text("确认后屏幕将被固定：直到计时结束（正计时为手动完成）都无法退出，长按返回等系统退出方式会在数秒内被重新固定。首次开始时系统会再弹一次「应用固定」授权，请点「开始使用」。") },
+        text = { Text("确认后屏幕将被固定：直到计时结束（正计时为手动完成）都无法退出，长按返回等系统退出方式会在数秒内被重新固定。如尚未预授权屏幕固定，系统会弹一次「应用固定」确认（可在 专注防护设置 提前完成授权）。") },
         confirmButton = { TextButton(onClick = { confirmingExtreme = false; startFocus() }, enabled = !state.busy) { Text("确认开始") } },
         dismissButton = { TextButton(onClick = { confirmingExtreme = false }) { Text("再想想") } })
     if (cancelling && run != null) AlertDialog(onDismissRequest = { cancelling = false }, title = { Text("取消本次专注？") },

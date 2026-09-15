@@ -75,7 +75,19 @@ fun GuardSetupScreen(context: android.content.Context, onBack: () -> Unit) {
                         TextButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) } }) { Text("打开使用情况访问") }
                         PermissionRow("无障碍服务（严格模式守护）", capabilities.accessibilityGranted) { }
                         TextButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) } }) { Text("打开无障碍设置（选择「专注守护」）") }
-                        Text("极致模式使用系统屏幕固定：开始专注时会弹出系统确认框；确认后直到计时结束都无法退出（长按返回会被重新固定）。", style = MaterialTheme.typography.bodySmall)
+                        Text("极致模式使用系统屏幕固定：确认后直到计时结束都无法退出（长按返回会被重新固定）。", style = MaterialTheme.typography.bodySmall)
+                        // 预授权：系统授权框只在首次 startLockTask 时弹（确认后系统记住）。在此提前完成授权，
+                        // 正式开始极致专注时就只剩应用内确认弹窗，不再弹系统框。
+                        var pinTesting by remember { mutableStateOf(false) }
+                        OutlinedButton(onClick = {
+                            pinTesting = true
+                            (context as? android.app.Activity)?.let { runCatching { it.startLockTask() } }
+                        }, enabled = !pinTesting) { Text(if (pinTesting) "测试固定中，稍后自动解除…" else "预授权屏幕固定（一次性，之后开始专注不弹系统框）") }
+                        if (pinTesting) LaunchedEffect(Unit) {
+                            kotlinx.coroutines.delay(2500)
+                            (context as? android.app.Activity)?.let { runCatching { it.stopLockTask() } }
+                            pinTesting = false
+                        }
                     }
                     item {
                         Text("白名单应用", style = MaterialTheme.typography.titleMedium)
