@@ -243,3 +243,7 @@
 - effectiveMode：EXTREME 生效条件改为 accessibilityGranted（缺则沿 STRICT 链降级）；GuardCapabilities.screenPinningAvailable 仅作快照保留。预授权按钮删除（不再需要）。
 - FocusGuardTest/TaskUiTest 相应更新；core/tasks/focus 测试全绿；已真机升级安装。
 - 1.5.1（versionCode 35）：无障碍服务 exported=false → true（targetSdk 36 下部分 ROM 列表不显示/无法绑定）；ColorOS 上"已下载的应用"仍可能隐藏 adb 安装来源的应用条目（OPPO 安全过滤），不影响服务实际运行，必要时用 adb settings 命令开关。
+
+## 横屏精简 + 沉浸（2026-09-15，1.5.3 / versionCode 37）
+- 横屏准备页隐藏两行说明（模式说明、提醒状态），竖屏完整保留；"缺少权限"降级提示仍显示。
+- 横屏锁定时收起状态栏（沉浸式，边缘上滑可临时呼出），退出横屏恢复。

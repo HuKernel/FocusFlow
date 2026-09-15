@@ -8,6 +8,9 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -132,9 +135,13 @@ class MainActivity : ComponentActivity() {
                         onPickCustomBackground = { pickBackground.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                         appVersion = appVersion,
                         onToggleLandscape = { landscape ->
-                            // 横屏锁定只在专注页内可选；离开页面由 FocusScreen 复位
+                            // 横屏锁定只在专注页内可选；离开页面由 FocusScreen 复位。横屏沉浸：收起状态栏，退出恢复
                             requestedOrientation = if (landscape) android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                             else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+                            val controller = WindowCompat.getInsetsController(window, window.decorView)
+                            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                            if (landscape) controller.hide(WindowInsetsCompat.Type.statusBars())
+                            else controller.show(WindowInsetsCompat.Type.statusBars())
                         },
                         )
                         val escapeRemaining = GuardPrefs.lastEscape(this@MainActivity) + 5000 - nowTick

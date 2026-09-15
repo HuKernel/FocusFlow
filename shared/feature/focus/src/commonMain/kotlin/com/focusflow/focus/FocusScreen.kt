@@ -178,7 +178,7 @@ fun FocusScreen(
                                         FilterChip(selectedMode == choice, { selectedMode = choice }, label = { Text(label) }, modifier = Modifier.testTag("guard_mode_${choice.name}"))
                                     }
                                 }
-                                Text(when (strength.effective) {
+                                if (!landscape) Text(when (strength.effective) {
                                     FocusMode.NORMAL -> "当前权限下按普通模式计时：可随时离开，不限制其他应用。"
                                     FocusMode.SOFT -> "软性模式：允许切换应用，专注结束后可查看中断记录（需使用情况访问）。"
                                     FocusMode.STRICT -> "严格模式：离开白名单应用会收到回到专注的提醒。"
@@ -197,8 +197,10 @@ fun FocusScreen(
                                     if (onOpenGuardSetup != null) TextButton(onClick = onOpenGuardSetup) { Text("去开启专注防护") }
                                 }
                             }
-                            Text(if (state.remindersAvailable) "结束提醒已开启，系统省电时可能延后" else "结束提醒未开启，计时仍正常保存", style = MaterialTheme.typography.bodySmall)
-                            if (!state.remindersAvailable && onEnableReminders != null) OutlinedButton(onClick = onEnableReminders) { Text("开启结束提醒") }
+                            if (!landscape) {
+                                Text(if (state.remindersAvailable) "结束提醒已开启，系统省电时可能延后" else "结束提醒未开启，计时仍正常保存", style = MaterialTheme.typography.bodySmall)
+                                if (!state.remindersAvailable && onEnableReminders != null) OutlinedButton(onClick = onEnableReminders) { Text("开启结束提醒") }
+                            }
                             validation?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                             Button(shape = FocusShapes.button, colors = ButtonDefaults.buttonColors(
                                 containerColor = theme.content, contentColor = if (theme.dark) androidx.compose.ui.graphics.Color(0xFF1B2437) else androidx.compose.ui.graphics.Color.White),
