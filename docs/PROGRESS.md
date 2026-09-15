@@ -217,4 +217,4 @@
 - 「无背景」从纯黑改为纸白（0xFFFDFDFB→F3F4F6，深色文字），并成为默认：新装直接纸白；老用户存储的旧默认 OBSIDIAN 一次性迁移为无背景（bg_default_migrated 标记，此后以用户选择为准）。
 - 专注页顶栏新增「横屏」锁定按钮：仅专注页内可选，点击强制横屏（SCREEN_ORIENTATION_SENSOR_LANDSCAPE），再点还原（FULL_SENSOR）；离开专注页自动归还方向控制权。
 - 横屏双栏收窄居中：每栏 widthIn(max=460dp)、weight(fill=false)、行内水平居中，隐藏顶栏语录——消除宽屏下左右大片留白。修复：横屏栏内 fillMaxHeight/verticalScroll/Arrangement.Center 组合会触发无限重测（compose 测试 waitForIdle 永不空闲实证），勿在此处组合使用。
-- 全部模块 desktopTest 绿（TaskUiTest 全类 19s）；APK：artifacts/FocusFlow-1.4.9-debug.apk（真机安装待设备重连）。
+- 全部模块 desktopTest 绿（TaskUiTest 全类 19s）；APK：artifacts/FocusFlow-1.4.9-debug.apk（已真机升级安装验证）。
