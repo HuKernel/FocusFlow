@@ -180,8 +180,8 @@ fun FocusScreen(
                                 }
                                 if (!landscape) Text(when (strength.effective) {
                                     FocusMode.NORMAL -> "当前权限下按普通模式计时：可随时离开，不限制其他应用。"
-                                    FocusMode.SOFT -> "软性模式：允许切换应用，专注结束后可查看中断记录（需使用情况访问）。"
-                                    FocusMode.STRICT -> "严格模式：离开白名单应用会收到回到专注的提醒。"
+                                    FocusMode.SOFT -> "软性模式：允许切换应用，不打扰；切出会被记录，统计页可看中断次数（需使用情况访问）。"
+                                    FocusMode.STRICT -> "严格模式：离开白名单应用会被拉回并弹窗提醒（需无障碍服务）。"
                                     FocusMode.EXTREME -> "极致模式：开始后离开本应用会被立即拉回并显示警告倒计时，直到计时结束。"
                                 }, color = theme.secondary, style = MaterialTheme.typography.bodySmall)
                                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {

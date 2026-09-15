@@ -19,6 +19,7 @@ object GuardPrefs {
     private const val KEY_ACTIVE = "guard_active"
     private const val KEY_EXTREME_ACTIVE = "extreme_active"
     private const val KEY_LAST_ESCAPE = "last_escape_at"
+    private const val KEY_STRICT_ESCAPE = "strict_escape_at"
     private val json = Json { ignoreUnknownKeys = true }
 
     fun config(context: Context): StrictModeConfig =
@@ -58,6 +59,13 @@ object GuardPrefs {
     fun setLastEscape(context: Context, at: Long) {
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putLong(KEY_LAST_ESCAPE, at).apply()
     }
+
+    fun setStrictEscape(context: Context, at: Long) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putLong(KEY_STRICT_ESCAPE, at).apply()
+    }
+
+    fun strictEscape(context: Context): Long =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getLong(KEY_STRICT_ESCAPE, 0L)
 
     fun lastEscape(context: Context): Long =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getLong(KEY_LAST_ESCAPE, 0L)

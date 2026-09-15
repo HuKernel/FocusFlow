@@ -227,7 +227,7 @@ class TaskUiTest {
         val id = model.state.value.data.tasks.single().id
         compose.onNodeWithTag("quick_focus_$id").performClick()
         compose.onNodeWithTag("guard_mode_STRICT").performScrollTo().performClick()
-        compose.onNodeWithText("严格模式：离开白名单应用会收到回到专注的提醒。").assertExists()
+        compose.onNodeWithText("严格模式：离开白名单应用会被拉回并弹窗提醒（需无障碍服务）。").assertExists()
         // 1.5.0 起极致依赖无障碍拉回：无障碍缺失时降级并提示向导入口
         show(guardCapabilities = { com.focusflow.core.GuardCapabilities(accessibilityGranted = true) }, onOpenGuardSetup = { })
         compose.onNodeWithText("统计").performClick()
@@ -235,7 +235,7 @@ class TaskUiTest {
         compose.onNodeWithTag("guard_mode_EXTREME").performScrollTo().performClick()
         compose.onNodeWithText("极致模式：开始后离开本应用会被立即拉回并显示警告倒计时，直到计时结束。").assertExists()
         compose.onNodeWithTag("guard_mode_STRICT").performScrollTo().performClick()
-        compose.onNodeWithText("严格模式：离开白名单应用会收到回到专注的提醒。").assertExists()
+        compose.onNodeWithText("严格模式：离开白名单应用会被拉回并弹窗提醒（需无障碍服务）。").assertExists()
         // 权限全部缺失时降级为普通并提示向导入口
         show(guardCapabilities = { com.focusflow.core.GuardCapabilities() }, onOpenGuardSetup = { })
         compose.onNodeWithText("专注").performClick()

@@ -96,6 +96,10 @@ interface FocusDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSession(session: SessionEntity): Long
 
+    // 结算后补充遥测：只增改 interruptCount（软性模式专注结束后由平台层聚合写入），不覆盖其他结算字段
+    @Query("UPDATE focus_sessions SET interruptCount = :count WHERE id = :id")
+    suspend fun updateInterruptCount(id: String, count: Int)
+
     @Query("SELECT COALESCE(SUM(actualDuration), 0) FROM focus_sessions WHERE taskId = :taskId AND status = 'COMPLETED'")
     suspend fun completedMillis(taskId: String): Long
     @Query("SELECT COUNT(*) FROM focus_sessions WHERE status = 'CANCELLED' AND strictMode = 'EXTREME' AND endedAt >= :since")

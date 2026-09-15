@@ -124,6 +124,17 @@ class FocusRepository(
     override suspend fun complete(sessionId: String) { transition(sessionId) { if (it.session.status in listOf(SessionStatus.ACTIVE, SessionStatus.PAUSED)) engine.complete(it) else it } }
     override suspend fun cancel(sessionId: String) { transition(sessionId) { if (it.session.status in listOf(SessionStatus.ACTIVE, SessionStatus.PAUSED)) engine.cancel(it) else it } }
     suspend fun startBreak(sessionId: String) { transition(sessionId, engine::startBreak) }
+    /** 软性模式专注结束后写入聚合的中断次数（平台层 UsageStats 统计），并同步 UPDATE 事件。 */
+    suspend fun recordInterrupts(sessionId: String, count: Int) = mutations.withLock {
+        write {
+            dao.updateInterruptCount(sessionId, count)
+            dao.session(sessionId)?.let { entity ->
+                dao.insertEvent(SyncEventEntity(SyncEvent(newId(), currentDeviceId() ?: return@write, "FocusSession", sessionId,
+                    SyncOperation.UPDATE, Json.encodeToString(entity.session), clock.epochMillis())))
+            }
+        }
+        Unit
+    }
     suspend fun skipBreak(sessionId: String) { transition(sessionId, engine::skipBreak) }
     suspend fun dismiss(sessionId: String) = mutations.withLock {
         write {

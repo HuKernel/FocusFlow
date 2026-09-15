@@ -83,6 +83,18 @@ class MainActivity : ComponentActivity() {
             }
             // 极致专注起止同步拉回开关；轮询逃逸时间戳驱动警告页
             val activeRun by app.focus.runs.collectAsState(initial = null)
+            // 软性模式会话结算：UsageStats 聚合中断次数写入 session（切出即计入，事后统计）
+            var interruptRecorded by remember { mutableStateOf<String?>(null) }
+            LaunchedEffect(activeRun?.session?.id, activeRun?.session?.status) {
+                val run = activeRun ?: return@LaunchedEffect
+                if (run.session.strictMode != com.focusflow.core.FocusMode.SOFT) return@LaunchedEffect
+                if (run.session.status != com.focusflow.core.SessionStatus.COMPLETED &&
+                    run.session.status != com.focusflow.core.SessionStatus.CANCELLED) return@LaunchedEffect
+                if (interruptRecorded == run.session.id) return@LaunchedEffect
+                interruptRecorded = run.session.id
+                val count = SoftInterruptCounter.countDepartures(this@MainActivity, run.session.startedAt, System.currentTimeMillis() - 1000)
+                if (count > 0) runCatching { app.focus.recordInterrupts(run.session.id, count) }
+            }
             LaunchedEffect(activeRun) {
                 val extreme = activeRun != null && activeRun!!.session.strictMode == FocusMode.EXTREME &&
                     activeRun!!.anchor.state == com.focusflow.core.TimerState.FOCUSING
@@ -154,6 +166,12 @@ class MainActivity : ComponentActivity() {
                                 Text("秒后重新锁定并回到专注", color = Color(0xFFB8B8D9), style = MaterialTheme.typography.bodyMedium)
                             }
                         }
+                        val strictEscape = GuardPrefs.strictEscape(this@MainActivity)
+                        if (strictEscape > 0 && nowTick < strictEscape + 8000) androidx.compose.material3.AlertDialog(
+                            onDismissRequest = { GuardPrefs.setStrictEscape(this@MainActivity, 0L) },
+                            title = { Text("离开专注了") },
+                            text = { Text("检测到你在严格模式专注期间打开了其他应用。") },
+                            confirmButton = { androidx.compose.material3.TextButton(onClick = { GuardPrefs.setStrictEscape(this@MainActivity, 0L) }) { Text("回到专注") } })
                     }
                 }
             }

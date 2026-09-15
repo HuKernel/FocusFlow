@@ -1,4 +1,4 @@
 <resources>
-    <string name="focus_guard_description">专注守护仅在您主动开启 Strict 专注模式后运行：读取当前窗口的应用包名，检测是否离开白名单并提醒您回到专注。不读取页面内容，不上传任何数据，可随时在系统设置中停用。</string>
+    <string name="focus_guard_description">专注守护仅在您主动开启 Strict 专注模式后运行：读取当前窗口的应用包名，检测是否离开白名单并拉回提醒您回到专注。不读取页面内容，不上传任何数据，可随时在系统设置中停用。</string>
     <string name="focus_guard_summary">Strict 专注模式的应用白名单守护</string>
 </resources>

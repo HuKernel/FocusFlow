@@ -1,10 +1,6 @@
 package com.focusflow.app
 
 import android.accessibilityservice.AccessibilityService
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
 import com.focusflow.core.isGuardAllowed
@@ -35,7 +31,12 @@ class FocusGuardService : AccessibilityService() {
         if (isGuardAllowed(eventPackage, packageName, launchers, GuardPrefs.whitelist(this))) return
         val launchable = packageManager.getLaunchIntentForPackage(eventPackage) != null
         if (!launchable && !isInterestingPackage(eventPackage)) return // 系统内部窗口变化不打扰
-        pullBack(eventPackage)
+        // 严格模式：拉回应用并弹窗提醒（原通知容易被 ROM 折叠忽略）；白名单应用不触发
+        GuardPrefs.setStrictEscape(this, System.currentTimeMillis())
+        runCatching {
+            startActivity(Intent(this, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        }
     }
 
     override fun onInterrupt() = Unit
@@ -43,29 +44,11 @@ class FocusGuardService : AccessibilityService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_EXIT) {
             GuardPrefs.setGuardActive(this, false)
+            GuardPrefs.setExtremeActive(this, false)
             stopSelf()
             return START_NOT_STICKY
         }
         return super.onStartCommand(intent, flags, startId)
-    }
-
-    private fun pullBack(packageName: String) {
-        val exit = PendingIntent.getService(this, 1,
-            Intent(this, FocusGuardService::class.java).setAction(ACTION_EXIT),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(CHANNEL, "专注守护", NotificationManager.IMPORTANCE_HIGH))
-        val notification = Notification.Builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("回到专注")
-            .setContentText("检测到 $packageName 不在白名单，点击返回 FocusFlow。")
-            .setOngoing(true)
-            .setContentIntent(PendingIntent.getActivity(this, 2,
-                Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
-            .addAction(Notification.Action.Builder(null, "退出守护（Emergency Exit）", exit).build())
-            .build()
-        manager.notify(NOTICE_ID, notification)
     }
 
     private fun homePackages(): Set<String> {
@@ -76,8 +59,6 @@ class FocusGuardService : AccessibilityService() {
     private fun isInterestingPackage(packageName: String): Boolean = !packageName.startsWith("com.android.systemui")
 
     companion object {
-        private const val CHANNEL = "focus_guard"
-        private const val NOTICE_ID = 4001
         const val ACTION_EXIT = "com.focusflow.app.GUARD_EXIT"
     }
 }
