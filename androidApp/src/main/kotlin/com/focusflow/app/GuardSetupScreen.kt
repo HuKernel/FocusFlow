@@ -78,15 +78,35 @@ fun GuardSetupScreen(context: android.content.Context, onBack: () -> Unit) {
                         Text("极致模式使用系统屏幕固定：确认后直到计时结束都无法退出（长按返回会被重新固定）。", style = MaterialTheme.typography.bodySmall)
                         // 预授权：系统授权框只在首次 startLockTask 时弹（确认后系统记住）。在此提前完成授权，
                         // 正式开始极致专注时就只剩应用内确认弹窗，不再弹系统框。
-                        var pinTesting by remember { mutableStateOf(false) }
+                        // 时序：必须等用户在系统弹窗点「开始使用」、检测到已真正锁定后再解除；
+                        // 固定延时解除会在用户尚未确认时失效，之后再确认会困在固定状态。
+                        var pinState by remember { mutableStateOf<String?>(null) }
                         OutlinedButton(onClick = {
-                            pinTesting = true
+                            pinState = "waiting"
                             (context as? android.app.Activity)?.let { runCatching { it.startLockTask() } }
-                        }, enabled = !pinTesting) { Text(if (pinTesting) "测试固定中，稍后自动解除…" else "预授权屏幕固定（一次性，之后开始专注不弹系统框）") }
-                        if (pinTesting) LaunchedEffect(Unit) {
-                            kotlinx.coroutines.delay(2500)
-                            (context as? android.app.Activity)?.let { runCatching { it.stopLockTask() } }
-                            pinTesting = false
+                        }, enabled = pinState == null) {
+                            Text(when (pinState) {
+                                "waiting" -> "请在系统弹窗点「开始使用」…"
+                                "locked" -> "已固定，1 秒后自动解除…"
+                                "done" -> "授权完成，之后开始专注不再弹系统框 ✓"
+                                "timeout" -> "超时未确认，请重试"
+                                else -> "预授权屏幕固定（一次性，之后开始专注不弹系统框）"
+                            })
+                        }
+                        if (pinState == "waiting") LaunchedEffect(Unit) {
+                            val activity = context as? android.app.Activity
+                            val start = android.os.SystemClock.elapsedRealtime()
+                            var locked = false
+                            while (android.os.SystemClock.elapsedRealtime() - start < 60_000) {
+                                if (activity?.getSystemService(android.app.ActivityManager::class.java)?.isInLockTaskMode == true) { locked = true; break }
+                                kotlinx.coroutines.delay(200)
+                            }
+                            if (locked) {
+                                pinState = "locked"
+                                kotlinx.coroutines.delay(1000)
+                                runCatching { activity?.stopLockTask() }
+                                pinState = "done"
+                            } else pinState = "timeout"
                         }
                     }
                     item {
