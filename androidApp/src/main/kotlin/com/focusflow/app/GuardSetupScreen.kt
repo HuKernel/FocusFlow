@@ -35,6 +35,15 @@ fun GuardSetupScreen(context: android.content.Context, onBack: () -> Unit) {
             .sortedBy { it.first }
     }
     var capabilities by remember { mutableStateOf(GuardPrefs.capabilities(context)) }
+    // 从系统设置返回时自动刷新自检（用户开完权限回来立刻看到变绿，无需退出重进）
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) capabilities = GuardPrefs.capabilities(context)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     var requestedMode by remember { mutableStateOf(config.mode) }
     FocusTheme {
         Scaffold { padding ->
@@ -75,6 +84,7 @@ fun GuardSetupScreen(context: android.content.Context, onBack: () -> Unit) {
                         TextButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) } }) { Text("打开使用情况访问") }
                         PermissionRow("无障碍服务（严格模式守护）", capabilities.accessibilityGranted) { }
                         TextButton(onClick = { runCatching { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) } }) { Text("打开无障碍设置（选择「专注守护」）") }
+                        Text("找不到 FocusFlow？OPPO/一加：无障碍 → 已下载的应用；若列表被隐藏，多为「纯净模式」拦截未知来源应用，可到 设置 → 密码与安全 关闭纯净模式后再试。小米：更多设置 → 无障碍 → 已下载的应用。", style = MaterialTheme.typography.bodySmall)
                         Text("极致模式通过本服务的无障碍事件检测切出并立即拉回（无系统弹窗、无固定提示条）；离开本应用会显示 5 秒警告倒计时后回到专注。", style = MaterialTheme.typography.bodySmall)
                     }
                     item {
