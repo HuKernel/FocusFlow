@@ -236,3 +236,9 @@
 
 ## 逃逸警告页（2026-09-14，1.4.14 / versionCode 33）
 - 极致锁定被系统手势解除并重锁后，不再直接闪回专注页：全屏显示「已退出专注锁定」警告页 + 5 秒大数字倒计时（提示专注计时仍在继续），倒计时结束自动回到专注页。逃逸时刻在重锁时记录（lastEscapeAt），仅授权完成后的失锁触发；专注结束自动清除。
+
+## 极致模式改无障碍拉回，彻底移除系统弹窗（2026-09-14，1.5.0 / versionCode 34）
+- 极致模式不再使用系统屏幕固定（startLockTask）：授权框、"应用已固定"提示条从此完全消失（同番茄TODO学霸模式路线）。
+- 新机制：FocusGuardService（无障碍）检测到切出本应用即拉回 MainActivity，记录逃逸时间戳；MainActivity 轮询显示 5 秒警告倒计时页后回专注。systemui 窗口（下拉/最近任务）不触发避免抖动。
+- effectiveMode：EXTREME 生效条件改为 accessibilityGranted（缺则沿 STRICT 链降级）；GuardCapabilities.screenPinningAvailable 仅作快照保留。预授权按钮删除（不再需要）。
+- FocusGuardTest/TaskUiTest 相应更新；core/tasks/focus 测试全绿；已真机升级安装。

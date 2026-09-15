@@ -228,13 +228,17 @@ class TaskUiTest {
         compose.onNodeWithTag("quick_focus_$id").performClick()
         compose.onNodeWithTag("guard_mode_STRICT").performScrollTo().performClick()
         compose.onNodeWithText("严格模式：离开白名单应用会收到回到专注的提醒。").assertExists()
-        // 极致只依赖屏幕固定：无障碍/Usage 缺失时仍为极致
-        show(guardCapabilities = { com.focusflow.core.GuardCapabilities(screenPinningAvailable = true) }, onOpenGuardSetup = { })
+        // 1.5.0 起极致依赖无障碍拉回：无障碍缺失时降级并提示向导入口
+        show(guardCapabilities = { com.focusflow.core.GuardCapabilities(accessibilityGranted = true) }, onOpenGuardSetup = { })
         compose.onNodeWithText("统计").performClick()
         compose.onNodeWithText("专注").performClick()
         compose.onNodeWithTag("guard_mode_EXTREME").performScrollTo().performClick()
-        compose.onNodeWithText("极致模式：使用系统屏幕固定，开始后无法退出，直到计时结束自动解锁。").assertExists()
-        // 严格缺无障碍时降级为普通并提示向导入口
+        compose.onNodeWithText("极致模式：开始后离开本应用会被立即拉回并显示警告倒计时，直到计时结束。").assertExists()
+        compose.onNodeWithTag("guard_mode_STRICT").performScrollTo().performClick()
+        compose.onNodeWithText("严格模式：离开白名单应用会收到回到专注的提醒。").assertExists()
+        // 权限全部缺失时降级为普通并提示向导入口
+        show(guardCapabilities = { com.focusflow.core.GuardCapabilities() }, onOpenGuardSetup = { })
+        compose.onNodeWithText("专注").performClick()
         compose.onNodeWithTag("guard_mode_STRICT").performScrollTo().performClick()
         compose.onNodeWithText("当前权限下按普通模式计时：可随时离开，不限制其他应用。").assertExists()
         compose.onNodeWithText("去开启专注防护").performScrollTo().assertExists()

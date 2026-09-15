@@ -15,13 +15,12 @@ class FocusGuardTest {
         assertEquals(FocusMode.SOFT, effectiveMode(FocusMode.STRICT, GuardCapabilities(usageAccessGranted = true)))
         assertEquals(FocusMode.NORMAL, effectiveMode(FocusMode.STRICT, GuardCapabilities()))
         assertEquals(FocusMode.STRICT, effectiveMode(FocusMode.STRICT, full))
-        assertEquals(FocusMode.STRICT, effectiveMode(FocusMode.EXTREME, full.copy(screenPinningAvailable = false)))
+        // 1.5.0 起极致依赖无障碍拉回（不再使用系统屏幕固定）
         assertEquals(FocusMode.EXTREME, effectiveMode(FocusMode.EXTREME, full))
-        // 极致只依赖屏幕固定：无障碍/Usage 缺失不影响极致（防切换由固定承担）
-        assertEquals(FocusMode.EXTREME, effectiveMode(FocusMode.EXTREME, GuardCapabilities(screenPinningAvailable = true)))
-        assertEquals(FocusMode.EXTREME, effectiveMode(FocusMode.EXTREME, GuardCapabilities(usageAccessGranted = true, screenPinningAvailable = true)))
-        // 屏幕固定不可用才降严格
-        assertEquals(FocusMode.STRICT, effectiveMode(FocusMode.EXTREME, GuardCapabilities()))
+        assertEquals(FocusMode.SOFT, effectiveMode(FocusMode.EXTREME, full.copy(accessibilityGranted = false)))
+        assertEquals(FocusMode.EXTREME, effectiveMode(FocusMode.EXTREME, GuardCapabilities(accessibilityGranted = true)))
+        assertEquals(FocusMode.SOFT, effectiveMode(FocusMode.EXTREME, GuardCapabilities(usageAccessGranted = true)))
+        assertEquals(FocusMode.NORMAL, effectiveMode(FocusMode.EXTREME, GuardCapabilities()))
     }
 
     @Test fun whitelistAllowsOwnLauncherAndUserAppsOnly() {

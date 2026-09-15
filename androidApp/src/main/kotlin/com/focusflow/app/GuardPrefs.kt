@@ -17,6 +17,8 @@ object GuardPrefs {
     private const val KEY_CONFIG = "strict_config"
     private const val KEY_WHITELIST = "whitelist"
     private const val KEY_ACTIVE = "guard_active"
+    private const val KEY_EXTREME_ACTIVE = "extreme_active"
+    private const val KEY_LAST_ESCAPE = "last_escape_at"
     private val json = Json { ignoreUnknownKeys = true }
 
     fun config(context: Context): StrictModeConfig =
@@ -43,6 +45,22 @@ object GuardPrefs {
 
     fun isGuardActive(context: Context): Boolean =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_ACTIVE, false)
+
+    /** 极致拉回运行中（由 MainActivity 在极致专注起止时设置，FocusGuardService 读取）。 */
+    fun setExtremeActive(context: Context, active: Boolean) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(KEY_EXTREME_ACTIVE, active).apply()
+        if (!active) context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().remove(KEY_LAST_ESCAPE).apply()
+    }
+
+    fun isExtremeActive(context: Context): Boolean =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(KEY_EXTREME_ACTIVE, false)
+
+    fun setLastEscape(context: Context, at: Long) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putLong(KEY_LAST_ESCAPE, at).apply()
+    }
+
+    fun lastEscape(context: Context): Long =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getLong(KEY_LAST_ESCAPE, 0L)
 
     fun capabilities(context: Context): GuardCapabilities = GuardCapabilities(
         accessibilityGranted = accessibilityEnabled(context),

@@ -42,27 +42,8 @@ class MainActivity : ComponentActivity() {
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private var guardSetupOpen by mutableStateOf(false)
 
-    // 极致专注防退出：系统手势（长按返回/上滑长按）由 SystemUI 处理、应用无法拦截，
-    // 这里做的是"无效化"——失锁后重新 startLockTask。
-    // 节流规则：从未授权过时（系统对话框可能在等待用户）低频 15s；授权记忆完成后（hasPinnedOnce）
-    // 再调用 startLockTask 不会弹任何系统框，可用 250ms 快速重锁，把系统手势的逃离窗口压到最小。
-    @Volatile private var extremeActive = false
-    @Volatile private var hasPinnedOnce = false
-    @Volatile var lastEscapeAt = 0L // 最近一次"失锁→重锁"时刻，驱动逃逸警告页倒计时
-    private var lastLockRequest = 0L
-    private fun relockIfExtreme() {
-        if (!extremeActive) return
-        if (getSystemService(android.app.ActivityManager::class.java).isInLockTaskMode) { hasPinnedOnce = true; return }
-        val now = android.os.SystemClock.elapsedRealtime()
-        if (now - lastLockRequest < if (hasPinnedOnce) 250L else 15000L) return
-        lastLockRequest = now
-        if (hasPinnedOnce) lastEscapeAt = System.currentTimeMillis()
-        runCatching { startLockTask() }
-    }
-    override fun onStop() {
-        super.onStop()
-        relockIfExtreme()
-    }
+    // 极致专注（1.5.0）：不再使用系统屏幕固定（startLockTask）——那会带来系统授权框与
+    // "应用已固定"提示条；改由 FocusGuardService 无障碍检测切出并拉回，本页轮询逃逸时间戳显示警告页。
 
     override fun onStart() {
         super.onStart()
@@ -76,17 +57,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             val app = application as FocusFlowApplication
             val feedback = remember { app.feedback }
-            // STRICT 生效时开启守护；EXTREME 追加系统屏幕固定（确认后失锁会在 1 秒内重新固定）
+            // STRICT 生效时开启守护；EXTREME 开启无障碍拉回（FocusGuardService 执行）
             val applyGuardMode: (FocusMode) -> Unit = { mode ->
                 GuardPrefs.setGuardActive(this, mode == com.focusflow.core.FocusMode.STRICT)
-                if (mode == com.focusflow.core.FocusMode.EXTREME) {
-                    lastLockRequest = android.os.SystemClock.elapsedRealtime()
-                    runCatching { startLockTask() }
-                }
+                GuardPrefs.setExtremeActive(this, mode == com.focusflow.core.FocusMode.EXTREME)
             }
             val endGuard: () -> Unit = {
                 GuardPrefs.setGuardActive(this, false)
-                runCatching { stopLockTask() }
+                GuardPrefs.setExtremeActive(this, false)
             }
             // 相册选择专注页背景：拷贝到本机（文件名带时间戳，保证路径变化触发重组刷新），仅存路径（无需存储权限，系统照片选择器）
             val pickBackground = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -100,20 +78,13 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            // 极致专注进行中 200ms 快速校验屏幕固定，失锁即刻重新固定；平时 1s 空转
+            // 极致专注起止同步拉回开关；轮询逃逸时间戳驱动警告页
             val activeRun by app.focus.runs.collectAsState(initial = null)
             LaunchedEffect(activeRun) {
-                extremeActive = activeRun != null && activeRun!!.session.strictMode == FocusMode.EXTREME &&
+                val extreme = activeRun != null && activeRun!!.session.strictMode == FocusMode.EXTREME &&
                     activeRun!!.anchor.state == com.focusflow.core.TimerState.FOCUSING
-                if (!extremeActive) lastEscapeAt = 0L
+                if (extreme != GuardPrefs.isExtremeActive(this@MainActivity)) GuardPrefs.setExtremeActive(this@MainActivity, extreme)
             }
-            LaunchedEffect(Unit) {
-                while (true) {
-                    kotlinx.coroutines.delay(if (extremeActive) 200 else 1000)
-                    relockIfExtreme()
-                }
-            }
-            // 逃逸警告页：极致锁定被系统手势解除并重锁后，显示 5 秒倒计时再回到专注页（替代"闪回"）
             var nowTick by remember { mutableStateOf(System.currentTimeMillis()) }
             LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(200); nowTick = System.currentTimeMillis() } }
             val prefs by feedback.prefs.collectAsState()
@@ -166,7 +137,7 @@ class MainActivity : ComponentActivity() {
                             else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
                         },
                         )
-                        val escapeRemaining = lastEscapeAt + 5000 - nowTick
+                        val escapeRemaining = GuardPrefs.lastEscape(this@MainActivity) + 5000 - nowTick
                         if (escapeRemaining > 0) Box(Modifier.fillMaxSize().background(Color(0xFF0E0E14))) {
                             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center) {

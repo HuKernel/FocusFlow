@@ -19,6 +19,17 @@ class FocusGuardService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val eventPackage = event.packageName?.toString() ?: return
+        // 极致拉回（1.5.0 起替代系统屏幕固定）：检测到切出本应用即拉回并记录逃逸（驱动警告页）。
+        // 不用 startLockTask → 无系统授权框、无"应用已固定"提示条。systemui 窗口（下拉/最近任务）不触发，避免抖动。
+        if (GuardPrefs.isExtremeActive(this)) {
+            if (eventPackage == packageName || eventPackage.startsWith("com.android.systemui")) return
+            GuardPrefs.setLastEscape(this, System.currentTimeMillis())
+            runCatching {
+                startActivity(Intent(this, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+            }
+            return
+        }
         if (!GuardPrefs.isGuardActive(this)) return
         val launchers = homePackages()
         if (isGuardAllowed(eventPackage, packageName, launchers, GuardPrefs.whitelist(this))) return

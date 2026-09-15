@@ -182,7 +182,7 @@ fun FocusScreen(
                                     FocusMode.NORMAL -> "当前权限下按普通模式计时：可随时离开，不限制其他应用。"
                                     FocusMode.SOFT -> "软性模式：允许切换应用，专注结束后可查看中断记录（需使用情况访问）。"
                                     FocusMode.STRICT -> "严格模式：离开白名单应用会收到回到专注的提醒。"
-                                    FocusMode.EXTREME -> "极致模式：使用系统屏幕固定，开始后无法退出，直到计时结束自动解锁。"
+                                    FocusMode.EXTREME -> "极致模式：开始后离开本应用会被立即拉回并显示警告倒计时，直到计时结束。"
                                 }, color = theme.secondary, style = MaterialTheme.typography.bodySmall)
                                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                                     FocusBackground.entries.forEach { bg ->
@@ -246,7 +246,7 @@ fun FocusScreen(
                             when {
                                 running -> {
                                     if (extreme) {
-                                        Text("极致模式不提供暂停，也无法中途退出：长按返回等系统退出会在 1 秒内被重新固定，请等计时结束。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
+                                        Text("极致模式不提供暂停，也无法中途退出：离开本应用会被立即拉回并显示警告倒计时，请等计时结束。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
                                     } else Button(onClick = {
                                         if (phase == TimerState.PAUSED) { feedback.play(SoundEvent.FOCUS_RESUME); model.resume(active.session.id) }
                                         else { feedback.play(SoundEvent.FOCUS_PAUSE); model.pause(active.session.id) }
@@ -262,7 +262,7 @@ fun FocusScreen(
                                     if (stopwatch) Button(onClick = { model.complete(active.session.id) },
                                         enabled = !state.busy, modifier = Modifier.testTag("complete_focus")) { Text("完成专注") }
                                     if (!extreme) OutlinedButton(onClick = { cancelling = true }, enabled = !state.busy) { Text("取消本次专注") }
-                                    else Text("极致模式不支持中途取消：请等待计时结束（正计时请点「完成专注」）；计时结束前无法退出，长按返回也会被重新固定。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
+                                    else Text("极致模式不支持中途取消：请等待计时结束（正计时请点「完成专注」）；计时结束前离开会被立即拉回。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
                                 }
                                 phase == TimerState.BREAKING -> {
                                     Text("休息中：现在可以自由使用手机，休息结束会自动开始下一轮专注；时间不会计入任务进度。")
@@ -316,7 +316,7 @@ fun FocusScreen(
         }
     }
     if (confirmingExtreme && run == null) AlertDialog(onDismissRequest = { confirmingExtreme = false }, title = { Text("开始极致专注？") },
-        text = { Text("确认后屏幕将被固定：直到计时结束（正计时为手动完成）都无法退出，长按返回等系统退出方式会在数秒内被重新固定。如尚未预授权屏幕固定，系统会弹一次「应用固定」确认（可在 专注防护设置 提前完成授权）。") },
+        text = { Text("确认后直到计时结束（正计时为手动完成）都无法退出：离开本应用会被立即拉回，并显示 5 秒警告倒计时。需要已在 专注防护设置 开启无障碍服务。") },
         confirmButton = { TextButton(onClick = { confirmingExtreme = false; startFocus() }, enabled = !state.busy) { Text("确认开始") } },
         dismissButton = { TextButton(onClick = { confirmingExtreme = false }) { Text("再想想") } })
     if (cancelling && run != null) AlertDialog(onDismissRequest = { cancelling = false }, title = { Text("取消本次专注？") },
