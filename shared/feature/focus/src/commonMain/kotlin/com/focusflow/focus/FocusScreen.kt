@@ -151,73 +151,186 @@ fun FocusScreen(
                         val choices = tasks.filter { it.status == TaskStatus.TODO || it.status == TaskStatus.IN_PROGRESS }
                             @Composable fun setupLeft() {
                                 state.remote?.let { remote -> ObserverPanel(remote, state.busy, model::takeover) }
-                                Text("准备好，专注一件事", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                                if (choices.isEmpty()) Text("请先创建一项未完成的任务。")
-                                choices.forEach { task -> FocusChip(selectedTask == task.id, { selectedTask = task.id }, label = task.title, modifier = Modifier.fillMaxWidth()) }
-                                Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                    FocusChip(type == TimerType.COUNTDOWN, { type = TimerType.COUNTDOWN }, label = "倒计时")
-                                    FocusChip(type == TimerType.STOPWATCH, { type = TimerType.STOPWATCH }, label = "正计时")
-                                }
-                            if (type == TimerType.COUNTDOWN) {
-                                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                    listOf(15, 25, 45).forEach { preset -> FocusChip(minutes == "$preset", { minutes = "$preset" }, label = "$preset 分钟") }
-                                }
-                                FocusNumberField(minutes, { minutes = it }, label = "专注分钟", placeholder = "25", suffix = "分钟（1–1440）", modifier = Modifier.testTag("focus_minutes"))
-                            }
-                            FocusNumberField(breakMinutes, { breakMinutes = it }, label = "休息分钟", placeholder = "5", suffix = "分钟（1–120）", modifier = Modifier.testTag("break_minutes"))
-                        }
-                            @Composable fun setupRight() {
-                                val capabilities = guardCapabilities?.invoke()
-                                if (capabilities == null) Text("普通模式可随时离开或取消，不限制其他应用。", color = theme.secondary)
-                                else {
-                                    val strength = guardStrength(selectedMode, capabilities)
-                                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                        listOf(FocusMode.NORMAL to "普通", FocusMode.SOFT to "软性", FocusMode.STRICT to "严格", FocusMode.EXTREME to "极致").forEach { (choice, label) ->
-                                            FocusChip(selectedMode == choice, { selectedMode = choice }, label = label, modifier = Modifier.testTag("guard_mode_${choice.name}"))
+                                
+                                // 任务选择卡片
+                                FocusCard(
+                                    title = "选择任务",
+                                    subtitle = if (choices.isEmpty()) null else "共 ${choices.size} 个任务"
+                                ) {
+                                    if (choices.isEmpty()) {
+                                        Text("请先创建一项未完成的任务。", color = FocusColors.Muted)
+                                    } else {
+                                        Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                            choices.forEach { task -> 
+                                                FocusChip(
+                                                    selectedTask == task.id, 
+                                                    { selectedTask = task.id }, 
+                                                    label = task.title, 
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) 
+                                            }
                                         }
                                     }
-                                if (!landscape) Text(when (strength.effective) {
-                                    FocusMode.NORMAL -> "当前权限下按普通模式计时：可随时离开，不限制其他应用。"
-                                    FocusMode.SOFT -> "软性模式：允许切换应用，不打扰；切出会被记录，统计页可看中断次数（需使用情况访问）。"
-                                    FocusMode.STRICT -> "严格模式：离开白名单应用会被拉回并弹窗提醒（需无障碍服务）。"
-                                    FocusMode.EXTREME -> "极致模式：开始后离开本应用会被立即拉回并显示警告倒计时，直到计时结束。"
-                                }, color = theme.secondary, style = MaterialTheme.typography.bodySmall)
-                                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                    FocusBackground.entries.forEach { bg ->
-                                        FocusChip(prefs.focusBackground == bg, {
-                                            if (bg == FocusBackground.CUSTOM) onPickCustomBackground?.invoke()
-                                            feedback.setPrefs(prefs.copy(focusBackground = bg))
-                                        }, label = bg.label, modifier = Modifier.testTag("bg_${bg.name}"))
+                                }
+                                
+                                Spacer(Modifier.height(FocusSpacing.medium))
+                                
+                                // 计时设置卡片
+                                FocusCard(title = "计时设置") {
+                                    Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
+                                        // 计时类型
+                                        Text("计时方式", style = MaterialTheme.typography.labelLarge, color = FocusColors.Ink)
+                                        Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                            FocusChip(type == TimerType.COUNTDOWN, { type = TimerType.COUNTDOWN }, label = "倒计时")
+                                            FocusChip(type == TimerType.STOPWATCH, { type = TimerType.STOPWATCH }, label = "正计时")
+                                        }
+                                        
+                                        if (type == TimerType.COUNTDOWN) {
+                                            // 快速选择
+                                            Text("快速选择", style = MaterialTheme.typography.labelLarge, color = FocusColors.Ink)
+                                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                                listOf(15, 25, 45).forEach { preset -> 
+                                                    FocusChip(minutes == "$preset", { minutes = "$preset" }, label = "$preset 分钟") 
+                                                }
+                                            }
+                                            
+                                            // 自定义输入
+                                            FocusNumberField(
+                                                minutes, 
+                                                { minutes = it }, 
+                                                label = "专注时长", 
+                                                placeholder = "25", 
+                                                suffix = "分钟（1–1440）", 
+                                                modifier = Modifier.testTag("focus_minutes")
+                                            )
+                                        }
+                                        
+                                        // 休息时长
+                                        FocusNumberField(
+                                            breakMinutes, 
+                                            { breakMinutes = it }, 
+                                            label = "休息时长", 
+                                            placeholder = "5", 
+                                            suffix = "分钟（1–120）", 
+                                            modifier = Modifier.testTag("break_minutes")
+                                        )
                                     }
                                 }
-                                if (strength.missingSteps.isNotEmpty()) {
-                                    Text("缺少：${strength.missingSteps.joinToString("、")}。开启后按 ${strength.effective.name} 模式运行。", color = theme.secondary, style = MaterialTheme.typography.bodySmall)
-                                    if (onOpenGuardSetup != null) FocusTextButton(onClick = onOpenGuardSetup) { Text("去开启专注防护", color = FocusColors.Primary) }
+                            }
+                            @Composable fun setupRight() {
+                                val capabilities = guardCapabilities?.invoke()
+                                
+                                // 专注模式卡片
+                                FocusCard(
+                                    title = "专注模式",
+                                    subtitle = "选择防护强度"
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
+                                        // 模式选择
+                                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                            listOf(FocusMode.NORMAL to "普通", FocusMode.SOFT to "软性", FocusMode.STRICT to "严格", FocusMode.EXTREME to "极致").forEach { (choice, label) ->
+                                                FocusChip(selectedMode == choice, { selectedMode = choice }, label = label, modifier = Modifier.testTag("guard_mode_${choice.name}"))
+                                            }
+                                        }
+                                        
+                                        // 模式说明
+                                        if (capabilities != null) {
+                                            val strength = guardStrength(selectedMode, capabilities)
+                                            Text(
+                                                when (strength.effective) {
+                                                    FocusMode.NORMAL -> "普通模式：可随时离开，不限制其他应用。"
+                                                    FocusMode.SOFT -> "软性模式：允许切换应用，切出会被记录，统计页可看中断次数。"
+                                                    FocusMode.STRICT -> "严格模式：离开白名单应用会被拉回并弹窗提醒。"
+                                                    FocusMode.EXTREME -> "极致模式：开始后离开本应用会被立即拉回并显示警告倒计时，直到计时结束。"
+                                                },
+                                                color = FocusColors.Muted,
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                            
+                                            // 权限提示
+                                            if (strength.missingSteps.isNotEmpty()) {
+                                                Text(
+                                                    "缺少：${strength.missingSteps.joinToString("、")}",
+                                                    color = FocusColors.Warning,
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                                if (onOpenGuardSetup != null) {
+                                                    FocusTextButton(onClick = onOpenGuardSetup) { 
+                                                        Text("去开启专注防护", color = FocusColors.Primary) 
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            Text("普通模式可随时离开或取消，不限制其他应用。", color = FocusColors.Muted)
+                                        }
+                                    }
+                                }
+                                
+                                Spacer(Modifier.height(FocusSpacing.medium))
+                                
+                                // 背景选择卡片
+                                FocusCard(title = "背景风格") {
+                                    Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
+                                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                            FocusBackground.entries.forEach { bg ->
+                                                FocusChip(
+                                                    prefs.focusBackground == bg, 
+                                                    {
+                                                        if (bg == FocusBackground.CUSTOM) onPickCustomBackground?.invoke()
+                                                        feedback.setPrefs(prefs.copy(focusBackground = bg))
+                                                    }, 
+                                                    label = bg.label, 
+                                                    modifier = Modifier.testTag("bg_${bg.name}")
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                Spacer(Modifier.height(FocusSpacing.medium))
+                                
+                                // 提醒设置卡片
+                                FocusCard(title = "结束提醒") {
+                                    if (!landscape) {
+                                        if (state.remindersAvailable) {
+                                            Text("结束提醒已开启，系统省电时可能延后", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                        } else {
+                                            Text("结束提醒未开启，计时仍正常保存", color = FocusColors.Muted, style = MaterialTheme.typography.bodySmall)
+                                            if (onEnableReminders != null) {
+                                                FocusSecondaryButton(onClick = onEnableReminders) { 
+                                                    Text("开启结束提醒", color = FocusColors.Primary) 
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                Spacer(Modifier.height(FocusSpacing.medium))
+                                
+                                // 验证错误
+                                validation?.let { 
+                                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) 
+                                }
+                                
+                                // 开始按钮
+                                FocusPrimaryButton(
+                                    onClick = {
+                                        val duration = minutes.toLongOrNull()
+                                        val breakDuration = breakMinutes.toLongOrNull()
+                                        if (type == TimerType.COUNTDOWN && (duration == null || duration !in 1L..1440L)) validation = "请输入 1–1440 之间的整数分钟"
+                                        else if (breakDuration == null || breakDuration !in 1L..120L) validation = "请输入 1–120 之间的休息分钟"
+                                        else {
+                                            val effective = guardCapabilities?.invoke()?.let { effectiveMode(selectedMode, it) } ?: FocusMode.NORMAL
+                                            // 极致模式经应用内确认弹窗二次确认（不可退出性质的开始需明确仪式感）
+                                            if (effective == FocusMode.EXTREME) confirmingExtreme = true else startFocus()
+                                        }
+                                    },
+                                    enabled = !state.busy && choices.any { it.id == selectedTask },
+                                    modifier = Modifier.fillMaxWidth().testTag("start_focus")
+                                ) {
+                                    Text("开始专注", style = MaterialTheme.typography.labelLarge, color = androidx.compose.ui.graphics.Color.White)
                                 }
                             }
-                            if (!landscape) {
-                                Text(if (state.remindersAvailable) "结束提醒已开启，系统省电时可能延后" else "结束提醒未开启，计时仍正常保存", style = MaterialTheme.typography.bodySmall)
-                                if (!state.remindersAvailable && onEnableReminders != null) FocusSecondaryButton(onClick = onEnableReminders) { Text("开启结束提醒", color = FocusColors.Primary) }
-                            }
-                            validation?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                            FocusPrimaryButton(
-                                onClick = {
-                                    val duration = minutes.toLongOrNull()
-                                    val breakDuration = breakMinutes.toLongOrNull()
-                                    if (type == TimerType.COUNTDOWN && (duration == null || duration !in 1L..1440L)) validation = "请输入 1–1440 之间的整数分钟"
-                                    else if (breakDuration == null || breakDuration !in 1L..120L) validation = "请输入 1–120 之间的休息分钟"
-                                    else {
-                                        val effective = guardCapabilities?.invoke()?.let { effectiveMode(selectedMode, it) } ?: FocusMode.NORMAL
-                                        // 极致模式经应用内确认弹窗二次确认（不可退出性质的开始需明确仪式感）
-                                        if (effective == FocusMode.EXTREME) confirmingExtreme = true else startFocus()
-                                    }
-                                },
-                                enabled = !state.busy && choices.any { it.id == selectedTask },
-                                modifier = Modifier.testTag("start_focus")
-                            ) {
-                                Text("开始专注", style = MaterialTheme.typography.labelLarge, color = androidx.compose.ui.graphics.Color.White)
-                            }
-                        }
                         @Composable fun runLeft() {
                             val active = run ?: return
                             Text(active.taskTitle, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
