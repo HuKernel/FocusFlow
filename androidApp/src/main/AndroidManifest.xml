@@ -23,7 +23,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name=".FocusGuardService" android:exported="false"
+        <service android:name=".FocusGuardService" android:exported="true"
             android:label="@string/focus_guard_summary"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>

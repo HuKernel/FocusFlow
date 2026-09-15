@@ -242,3 +242,4 @@
 - 新机制：FocusGuardService（无障碍）检测到切出本应用即拉回 MainActivity，记录逃逸时间戳；MainActivity 轮询显示 5 秒警告倒计时页后回专注。systemui 窗口（下拉/最近任务）不触发避免抖动。
 - effectiveMode：EXTREME 生效条件改为 accessibilityGranted（缺则沿 STRICT 链降级）；GuardCapabilities.screenPinningAvailable 仅作快照保留。预授权按钮删除（不再需要）。
 - FocusGuardTest/TaskUiTest 相应更新；core/tasks/focus 测试全绿；已真机升级安装。
+- 1.5.1（versionCode 35）：无障碍服务 exported=false → true（targetSdk 36 下部分 ROM 列表不显示/无法绑定）；ColorOS 上"已下载的应用"仍可能隐藏 adb 安装来源的应用条目（OPPO 安全过滤），不影响服务实际运行，必要时用 adb settings 命令开关。
