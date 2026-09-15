@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 fun timerText(millis: Long): String {
@@ -29,9 +30,9 @@ fun timerText(millis: Long): String {
     else "${minutes.toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}"
 }
 
-/** 渐变描边计时环；lightContent 用于浅色背景页面切换文字/轨道色。 */
+/** 渐变描边计时环；lightContent 用于浅色背景页面切换文字/轨道色。size 供横屏等矮窗口缩小。 */
 @Composable
-fun TimerRing(millis: Long, progress: Float, label: String, lightContent: Boolean = false) {
+fun TimerRing(millis: Long, progress: Float, label: String, lightContent: Boolean = false, ringSize: Dp = 280.dp) {
     val prefs by LocalFocusFeedback.current.prefs.collectAsState()
     val animated by animateFloatAsState(progress.coerceIn(0f, 1f),
         animationSpec = tween(FocusMotion.duration(prefs.reducedMotion), easing = FocusMotion.easing), label = "ring")
@@ -39,7 +40,7 @@ fun TimerRing(millis: Long, progress: Float, label: String, lightContent: Boolea
     val brush = Brush.sweepGradient(listOf(FocusColors.PrimaryDeep, primary, Color(0xFF9EA1FF), FocusColors.PrimaryDeep))
     val contentColor = if (lightContent) MaterialTheme.colorScheme.onSurface else Color.White
     val track = if (lightContent) MaterialTheme.colorScheme.surfaceVariant else Color.White.copy(alpha = 0.16f)
-    Box(Modifier.size(280.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(ringSize), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val stroke = Stroke(width = 9.dp.toPx(), cap = StrokeCap.Round)
             val inset = 9.dp.toPx() / 2 + 1.dp.toPx()
@@ -53,7 +54,8 @@ fun TimerRing(millis: Long, progress: Float, label: String, lightContent: Boolea
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(timerText(millis), color = contentColor,
-                style = MaterialTheme.typography.displayMedium.copy(fontFeatureSettings = "tnum"), fontWeight = FontWeight.Bold)
+                style = (if (ringSize < 260.dp) MaterialTheme.typography.displaySmall else MaterialTheme.typography.displayMedium).copy(fontFeatureSettings = "tnum"),
+                fontWeight = FontWeight.Bold)
             Text(label, color = contentColor.copy(alpha = 0.7f), style = MaterialTheme.typography.labelLarge)
         }
     }

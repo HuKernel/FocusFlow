@@ -33,12 +33,16 @@ class MainActivity : ComponentActivity() {
     private var guardSetupOpen by mutableStateOf(false)
 
     // 极致专注防退出：系统手势（长按返回/上滑长按）由 SystemUI 处理、应用无法拦截，
-    // 这里做的是"无效化"——失锁瞬间（onStop）+ 200ms 轮询双通道立即重新 startLockTask。
+    // 这里做的是"无效化"——失锁后快速重新 startLockTask。
+    // 3 秒节流是关键：确认对话框弹出会让本应用失焦（onStop），无节流会立即重发请求形成"弹窗闪烁"死循环。
     @Volatile private var extremeActive = false
+    private var lastLockRequest = 0L
     private fun relockIfExtreme() {
-        if (extremeActive && !getSystemService(android.app.ActivityManager::class.java).isInLockTaskMode) {
-            runCatching { startLockTask() }
-        }
+        if (!extremeActive || getSystemService(android.app.ActivityManager::class.java).isInLockTaskMode) return
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastLockRequest < 3000) return
+        lastLockRequest = now
+        runCatching { startLockTask() }
     }
     override fun onStop() {
         super.onStop()
@@ -60,7 +64,10 @@ class MainActivity : ComponentActivity() {
             // STRICT 生效时开启守护；EXTREME 追加系统屏幕固定（确认后失锁会在 1 秒内重新固定）
             val applyGuardMode: (FocusMode) -> Unit = { mode ->
                 GuardPrefs.setGuardActive(this, mode == com.focusflow.core.FocusMode.STRICT)
-                if (mode == com.focusflow.core.FocusMode.EXTREME) runCatching { startLockTask() }
+                if (mode == com.focusflow.core.FocusMode.EXTREME) {
+                    lastLockRequest = android.os.SystemClock.elapsedRealtime()
+                    runCatching { startLockTask() }
+                }
             }
             val endGuard: () -> Unit = {
                 GuardPrefs.setGuardActive(this, false)

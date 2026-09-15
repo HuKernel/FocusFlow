@@ -218,3 +218,7 @@
 - 专注页顶栏新增「横屏」锁定按钮：仅专注页内可选，点击强制横屏（SCREEN_ORIENTATION_SENSOR_LANDSCAPE），再点还原（FULL_SENSOR）；离开专注页自动归还方向控制权。
 - 横屏双栏收窄居中：每栏 widthIn(max=460dp)、weight(fill=false)、行内水平居中，隐藏顶栏语录——消除宽屏下左右大片留白。修复：横屏栏内 fillMaxHeight/verticalScroll/Arrangement.Center 组合会触发无限重测（compose 测试 waitForIdle 永不空闲实证），勿在此处组合使用。
 - 全部模块 desktopTest 绿（TaskUiTest 全类 19s）；APK：artifacts/FocusFlow-1.4.9-debug.apk（已真机升级安装验证）。
+
+## 修复固定弹窗闪烁 + 横屏比例（2026-09-14，1.4.10 / versionCode 29）
+- 修复"应用固定"确认弹窗循环闪烁：对话框弹出使应用失焦触发 onStop，未节流的重锁立即再发 startLockTask 形成弹窗死循环。重锁统一加 3 秒节流（对话框有充足时间完成确认），失锁重锁能力不变（3 秒后仍未固定才重发）。
+- 横屏适配修正：外层整页滚动仅竖屏启用（此前横屏也能整页拖动）；计时环横屏缩至 220dp（字体同步缩小）使其真正装进横屏高度；横屏内栏加纯滚动仅在任务过多溢出时生效。TimerRing 增加 ringSize 参数。

@@ -107,7 +107,9 @@ fun FocusScreen(
             val wide = maxWidth >= 840.dp
             val landscape = maxWidth > maxHeight
             Row(Modifier.fillMaxSize()) {
-                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(FocusSpacing.large),
+                Column(Modifier.weight(1f).fillMaxHeight()
+                    .then(if (landscape) Modifier else Modifier.verticalScroll(rememberScrollState()))
+                    .padding(FocusSpacing.large),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         // 极致模式运行中不提供离开入口：长按返回等系统退出后会在 1 秒内重新固定
@@ -214,7 +216,7 @@ fun FocusScreen(
                             TimerRing(display,
                                 if (stopwatch) 1f else state.elapsed.toFloat() / active.anchor.plannedDuration.coerceAtLeast(1),
                                 when (phase) { TimerState.PAUSED -> "已暂停"; TimerState.BREAKING -> "休息中"; TimerState.FOCUSING -> if (stopwatch) "已专注" else "剩余时间"; else -> "本轮已结束" },
-                                lightContent = !theme.dark)
+                                lightContent = !theme.dark, ringSize = if (landscape) 220.dp else 280.dp)
                             if (active.recoveredWithWallClock) Text("设备重启后的时长按系统时间估算。", style = MaterialTheme.typography.bodySmall, color = theme.secondary)
                         }
                         @Composable fun runRight() {
@@ -268,11 +270,11 @@ fun FocusScreen(
                             }
                         }
                         if (landscape) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.large, Alignment.CenterHorizontally)) {
-                            // ponytail: 横屏双栏收窄居中；此处勿加 fillMaxHeight/verticalScroll 组合（会触发无限重测，测试实证）
-                            Column(Modifier.weight(1f, fill = false).widthIn(max = 460.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                            // ponytail: 横屏双栏收窄居中；勿加 fillMaxHeight/Center 与 scroll 的组合（无限重测，测试实证）。内栏纯滚动仅任务过多溢出时生效
+                            Column(Modifier.weight(1f, fill = false).widthIn(max = 460.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
                                 if (setupStage) setupLeft() else runLeft()
                             }
-                            Column(Modifier.weight(1f, fill = false).widthIn(max = 460.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
+                            Column(Modifier.weight(1f, fill = false).widthIn(max = 460.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
                                 if (setupStage) setupRight() else runRight()
                             }
                         } else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FocusSpacing.large)) {
