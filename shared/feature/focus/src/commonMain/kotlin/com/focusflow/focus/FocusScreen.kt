@@ -266,11 +266,11 @@ fun FocusScreen(
                                     }
                                 }
                                 
-                                Spacer(Modifier.height(FocusSpacing.medium))
+                                Spacer(Modifier.height(FocusSpacing.small))
                                 
                                 // 背景选择卡片
                                 FocusCard(title = "背景风格") {
-                                    Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                                             FocusBackground.entries.forEach { bg ->
                                                 FocusChip(
@@ -287,7 +287,7 @@ fun FocusScreen(
                                     }
                                 }
                                 
-                                Spacer(Modifier.height(FocusSpacing.medium))
+                                Spacer(Modifier.height(FocusSpacing.small))
                                 
                                 // 提醒设置卡片
                                 FocusCard(title = "结束提醒") {
@@ -305,7 +305,7 @@ fun FocusScreen(
                                     }
                                 }
                                 
-                                Spacer(Modifier.height(FocusSpacing.medium))
+                                Spacer(Modifier.height(FocusSpacing.small))
                                 
                                 // 验证错误
                                 validation?.let { 
