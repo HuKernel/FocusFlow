@@ -173,11 +173,11 @@ fun FocusScreen(
                                     }
                                 }
                                 
-                                Spacer(Modifier.height(FocusSpacing.medium))
+                                Spacer(Modifier.height(FocusSpacing.small))
                                 
                                 // 计时设置卡片
                                 FocusCard(title = "计时设置") {
-                                    Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                                         // 计时类型
                                         Text("计时方式", style = MaterialTheme.typography.labelLarge, color = FocusColors.Ink)
                                         Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
@@ -225,7 +225,7 @@ fun FocusScreen(
                                     title = "专注模式",
                                     subtitle = "选择防护强度"
                                 ) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                                         // 模式选择
                                         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                                             listOf(FocusMode.NORMAL to "普通", FocusMode.SOFT to "软性", FocusMode.STRICT to "严格", FocusMode.EXTREME to "极致").forEach { (choice, label) ->
