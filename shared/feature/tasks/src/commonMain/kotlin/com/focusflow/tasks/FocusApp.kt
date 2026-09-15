@@ -163,24 +163,54 @@ fun FocusApp(
                             }
                         } }
                         if (selected == Destination.TODAY) item {
-                            Text(state.today, color = FocusColors.Muted)
-                            Spacer(Modifier.height(FocusSpacing.medium))
+                            Text(state.today, color = FocusColors.Muted, style = MaterialTheme.typography.labelLarge)
+                            Spacer(Modifier.height(FocusSpacing.small))
                             val minutes = state.data.sessions.filter { it.endedAt?.let { end -> localDateAt(end) == state.today } == true }.sumOf { it.actualDuration } / 60000
-                            Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                StatisticCard("今日专注", "$minutes 分钟", Modifier.weight(1f))
-                                StatisticCard("今日任务", "${visible.count { it.status == TaskStatus.DONE }} / ${visible.size}", Modifier.weight(1f))
-                                StatisticCard("连续专注", "${focusStreak(state.data.sessions, state.today)} 天", Modifier.weight(1f))
+                            
+                            // 今日统计卡片
+                            FocusCard(title = "今日概览") {
+                                Row(horizontalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("专注时长", color = FocusColors.Muted, style = MaterialTheme.typography.labelMedium)
+                                        Text("$minutes 分钟", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = FocusColors.Primary)
+                                    }
+                                    Column(Modifier.weight(1f)) {
+                                        Text("完成任务", color = FocusColors.Muted, style = MaterialTheme.typography.labelMedium)
+                                        Text("${visible.count { it.status == TaskStatus.DONE }} / ${visible.size}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = FocusColors.Primary)
+                                    }
+                                    Column(Modifier.weight(1f)) {
+                                        Text("连续天数", color = FocusColors.Muted, style = MaterialTheme.typography.labelMedium)
+                                        Text("${focusStreak(state.data.sessions, state.today)} 天", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = FocusColors.Primary)
+                                    }
+                                }
                             }
                         } else item {
-                            OutlinedTextField(search, { search = it }, Modifier.fillMaxWidth(), label = { Text("搜索任务") }, singleLine = true,
-                                leadingIcon = { Icon(Icons.Outlined.Search, null) })
-                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                TaskFilter.entries.forEach { choice -> FilterChip(filter == choice, { filter = choice }, label = { Text(choice.label) }) }
-                            }
-                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
-                                ChoiceMenu("项目", projectId, state.data.projects.map { it.id to it.name }, { projectId = it })
-                                ChoiceMenu("标签", tagId, state.data.tags.map { it.id to it.name }, { tagId = it })
-                                ChoiceMenu("优先级", priority?.name, Priority.entries.map { it.name to priorityLabel(it) }, { priority = it?.let(Priority::valueOf) })
+                            // 筛选卡片
+                            FocusCard(title = "筛选任务") {
+                                Column(verticalArrangement = Arrangement.spacedBy(FocusSpacing.medium)) {
+                                    // 搜索框
+                                    FocusTextField(
+                                        value = search,
+                                        onValueChange = { search = it },
+                                        placeholder = "搜索任务...",
+                                        singleLine = true
+                                    )
+                                    
+                                    // 筛选类型
+                                    Text("任务类型", style = MaterialTheme.typography.labelLarge, color = FocusColors.Ink)
+                                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                        TaskFilter.entries.forEach { choice -> 
+                                            FocusChip(filter == choice, { filter = choice }, label = choice.label) 
+                                        }
+                                    }
+                                    
+                                    // 高级筛选
+                                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
+                                        ChoiceMenu("项目", projectId, state.data.projects.map { it.id to it.name }, { projectId = it })
+                                        ChoiceMenu("标签", tagId, state.data.tags.map { it.id to it.name }, { tagId = it })
+                                        ChoiceMenu("优先级", priority?.name, Priority.entries.map { it.name to priorityLabel(it) }, { priority = it?.let(Priority::valueOf) })
+                                    }
+                                }
                             }
                         }
                         if (visible.isEmpty()) item { EmptyState(if (selected == Destination.TODAY) "今天，先做好一件事" else "没有符合条件的任务", "点击右下角 + 创建任务，也可以调整筛选。") }
