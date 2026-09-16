@@ -550,16 +550,18 @@ private fun TaskCard(task: Task, state: TasksState, millis: Long, modifier: Modi
                 Text(listOfNotNull(state.data.projects.find { it.id == task.projectId }?.name, task.plannedStartTime, task.plannedDate).joinToString(" · "),
                     color = FocusColors.Muted, style = MaterialTheme.typography.labelMedium)
                 
-                // 专注进度
+                // 专注进度（达标后进度条变绿并显示"已达标"，提示可勾选完成；完成与否仍由用户判断）
                 if (task.targetFocusMinutes > 0) {
+                    val reached = millis >= task.targetFocusMinutes * 60_000L && !done
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FocusSpacing.small)) {
                         LinearProgressIndicator(
                             progress = { (millis.toFloat() / (task.targetFocusMinutes * 60000L)).coerceIn(0f, 1f) },
                             Modifier.weight(1f).height(5.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp)),
                             trackColor = androidx.compose.ui.graphics.Color(0xFFE8E8F0),
-                            color = FocusColors.Primary
+                            color = if (reached) FocusColors.Success else FocusColors.Primary
                         )
-                        Text("${millis / 60000}/${task.targetFocusMinutes}分", color = FocusColors.Muted, style = MaterialTheme.typography.labelSmall)
+                        if (reached) Text("已达标", color = FocusColors.Success, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        else Text("${millis / 60000}/${task.targetFocusMinutes}分", color = FocusColors.Muted, style = MaterialTheme.typography.labelSmall)
                     }
                 }
                 

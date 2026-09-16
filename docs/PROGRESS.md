@@ -259,3 +259,6 @@
 - 任务列表：Today 页三统计合并为 FocusCard"今日概览"（Primary 色 titleLarge 数字）；筛选区 FocusCard 包裹 + FocusChip；TaskCard 柔和阴影卡片 + FocusChipCompact 标签 + FocusSecondaryButton。
 - 任务对话框：FocusTextField/FocusNumberField/FocusChip/FocusPrimaryButton 全面替换；FocusTextField 改用 OutlinedTextField 内核（保留测试语义兼容），FocusColors.Error→PriorityHigh。
 - 12/12 测试全绿；APK：artifacts/FocusFlow-1.7.0-debug.apk（装机待设备重连）。
+
+## 任务达标提示（2026-09-15，1.7.1 / versionCode 40）
+- 任务卡片：累计专注 ≥ 目标时长且未勾选完成时，进度条变绿（Success 色）+ 显示"已达标"标签（替代"X/Y分"计数）；完成与否仍由用户手动勾选（专注时长达标 ≠ 任务做完）。
